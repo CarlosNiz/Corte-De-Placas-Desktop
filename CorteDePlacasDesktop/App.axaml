@@ -3,13 +3,47 @@
              x:Class="CorteDePlacasDesktop.App"
              xmlns:local="using:CorteDePlacasDesktop"
              RequestedThemeVariant="Default">
-             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+             <!-- "Default" segue o tema do sistema (claro/escuro). -->
 
     <Application.DataTemplates>
         <local:ViewLocator />
     </Application.DataTemplates>
 
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="PageBackgroundBrush" Color="#F3F4F6" />
+                    <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="SurfaceBorderBrush" Color="#E1E4E8" />
+                    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#1A1D21" />
+                    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#5A6370" />
+                    <SolidColorBrush x:Key="BrandBrush" Color="#C2410C" />
+                    <SolidColorBrush x:Key="BrandSoftBrush" Color="#FDEBDD" />
+                    <SolidColorBrush x:Key="SheetBrush" Color="#EFE6D8" />
+                    <SolidColorBrush x:Key="SheetBorderBrush" Color="#B9A98F" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="PageBackgroundBrush" Color="#16181C" />
+                    <SolidColorBrush x:Key="SurfaceBrush" Color="#202328" />
+                    <SolidColorBrush x:Key="SurfaceBorderBrush" Color="#30343B" />
+                    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#ECEEF1" />
+                    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#9AA3AF" />
+                    <SolidColorBrush x:Key="BrandBrush" Color="#FB8A4C" />
+                    <SolidColorBrush x:Key="BrandSoftBrush" Color="#3A2416" />
+                    <SolidColorBrush x:Key="SheetBrush" Color="#2B2721" />
+                    <SolidColorBrush x:Key="SheetBorderBrush" Color="#5C5245" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+
     <Application.Styles>
-        <FluentTheme />
+        <FluentTheme>
+            <FluentTheme.Palettes>
+                <ColorPaletteResources x:Key="Light" Accent="#C2410C" />
+                <ColorPaletteResources x:Key="Dark" Accent="#EA580C" />
+            </FluentTheme.Palettes>
+        </FluentTheme>
     </Application.Styles>
 </Application>
