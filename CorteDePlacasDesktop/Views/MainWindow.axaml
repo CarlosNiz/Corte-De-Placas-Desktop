@@ -21,24 +21,62 @@
 
         <!-- Barra superior -->
         <Border Grid.Row="0"
-                Padding="32,14"
+                Padding="32,10"
                 Background="{DynamicResource SurfaceBrush}"
                 BorderBrush="{DynamicResource SurfaceBorderBrush}"
                 BorderThickness="0,0,0,1">
-            <StackPanel Orientation="Horizontal" Spacing="12">
-                <Image Source="/Assets/logo.png"
-                       Width="32" Height="32"
-                       RenderOptions.BitmapInterpolationMode="HighQuality" />
-                <TextBlock Text="Corte de Placas"
-                           FontSize="16"
-                           FontWeight="SemiBold"
-                           Foreground="{DynamicResource TextPrimaryBrush}"
-                           VerticalAlignment="Center" />
-            </StackPanel>
+            <!-- Altura fixa: a barra não muda de tamanho quando o botão Início some -->
+            <Grid ColumnDefinitions="*,Auto" Height="44">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
+                    <Image Source="/Assets/logo.png"
+                           Width="32" Height="32"
+                           RenderOptions.BitmapInterpolationMode="HighQuality" />
+                    <TextBlock Text="Corte de Placas"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+
+                <Button Grid.Column="1"
+                        Classes="nav"
+                        Command="{Binding AbrirInicioCommand}"
+                        IsVisible="{Binding !EstaNoInicio}"
+                        ToolTip.Tip="Voltar para a tela inicial">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <PathIcon Width="18" Height="18"
+                                  Data="M8,0 L0,7 H2 V16 H6.5 V10.5 H9.5 V16 H14 V7 H16 Z" />
+                        <TextBlock Text="Início" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </Grid>
         </Border>
 
         <!-- Página atual -->
         <ContentControl Grid.Row="1" Content="{Binding CurrentPage}" />
+
+        <!-- Diálogo de confirmação: escurece a tela e bloqueia o que está atrás -->
+        <Border Grid.Row="0" Grid.RowSpan="2"
+                Background="{DynamicResource OverlayBrush}"
+                IsVisible="{Binding Dialogo, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <ContentControl Content="{Binding Dialogo}"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center" />
+        </Border>
+
+        <!-- Avisos (toasts), no alto e ao centro, abaixo da barra -->
+        <ItemsControl Grid.Row="1"
+                      ItemsSource="{Binding Toasts}"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Top"
+                      Margin="0,8,0,0">
+            <!-- O espaço entre os avisos vem da margem de cada um (reserva lugar para a sombra) -->
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+        </ItemsControl>
     </Grid>
 
 </Window>

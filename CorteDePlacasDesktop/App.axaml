@@ -23,6 +23,12 @@
                     <SolidColorBrush x:Key="SheetBrush" Color="#EFE6D8" />
                     <SolidColorBrush x:Key="SheetBorderBrush" Color="#B9A98F" />
                     <SolidColorBrush x:Key="DangerBrush" Color="#B42318" />
+                    <SolidColorBrush x:Key="DangerSoftBrush" Color="#FEE4E2" />
+                    <SolidColorBrush x:Key="DangerStrongBrush" Color="#B42318" />
+                    <SolidColorBrush x:Key="DangerStrongHoverBrush" Color="#912018" />
+                    <SolidColorBrush x:Key="SuccessBrush" Color="#067647" />
+                    <SolidColorBrush x:Key="SuccessSoftBrush" Color="#DCFAE6" />
+                    <SolidColorBrush x:Key="OverlayBrush" Color="#661A1D21" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="PageBackgroundBrush" Color="#16181C" />
@@ -35,6 +41,12 @@
                     <SolidColorBrush x:Key="SheetBrush" Color="#2B2721" />
                     <SolidColorBrush x:Key="SheetBorderBrush" Color="#5C5245" />
                     <SolidColorBrush x:Key="DangerBrush" Color="#F97066" />
+                    <SolidColorBrush x:Key="DangerSoftBrush" Color="#3D1A17" />
+                    <SolidColorBrush x:Key="DangerStrongBrush" Color="#D92D20" />
+                    <SolidColorBrush x:Key="DangerStrongHoverBrush" Color="#B42318" />
+                    <SolidColorBrush x:Key="SuccessBrush" Color="#47CD89" />
+                    <SolidColorBrush x:Key="SuccessSoftBrush" Color="#0B3A26" />
+                    <SolidColorBrush x:Key="OverlayBrush" Color="#99000000" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
@@ -64,6 +76,36 @@
             <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource SurfaceBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
+        </Style>
+
+        <!-- Botão da barra superior (ex.: Início) -->
+        <Style Selector="Button.nav">
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource TextSecondaryBrush}" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="18,9" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+
+        <!-- Botão grande (diálogos) -->
+        <Style Selector="Button.large">
+            <Setter Property="Padding" Value="20,11" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+
+        <!-- Botão de ação destrutiva (ex.: descartar) -->
+        <Style Selector="Button.danger">
+            <Setter Property="Background" Value="{DynamicResource DangerStrongBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="Button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource DangerStrongHoverBrush}" />
+            <Setter Property="Foreground" Value="White" />
         </Style>
 
         <!-- Botão discreto, sem fundo -->

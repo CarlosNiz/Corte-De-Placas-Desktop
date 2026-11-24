@@ -1,0 +1,106 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CorteDePlacasDesktop.ViewModels"
+             x:Class="CorteDePlacasDesktop.Views.ToastView"
+             x:DataType="vm:ToastViewModel"
+             Foreground="{DynamicResource TextPrimaryBrush}">
+
+    <UserControl.Styles>
+        <!-- Entrada suave -->
+        <Style Selector="Border.toast">
+            <Style.Animations>
+                <Animation Duration="0:0:0.2" Easing="CubicEaseOut" FillMode="Forward">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="Opacity" Value="0" />
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="Opacity" Value="1" />
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+
+        <!-- Cores por tipo -->
+        <Style Selector="Border.toast.sucesso Border.icone">
+            <Setter Property="Background" Value="{DynamicResource SuccessSoftBrush}" />
+        </Style>
+        <Style Selector="Border.toast.sucesso PathIcon">
+            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+        </Style>
+        <Style Selector="Border.toast.erro Border.icone">
+            <Setter Property="Background" Value="{DynamicResource DangerSoftBrush}" />
+        </Style>
+        <Style Selector="Border.toast.erro PathIcon">
+            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+        </Style>
+
+        <!-- Botão "Desfazer" -->
+        <Style Selector="Button.acao">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource BrandBrush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <Border Classes="toast"
+            Classes.sucesso="{Binding EhSucesso}"
+            Classes.erro="{Binding EhErro}"
+            MinWidth="340"
+            MaxWidth="460"
+            Margin="16,6,16,16"
+            Padding="14,12,8,12"
+            CornerRadius="12"
+            Background="{DynamicResource SurfaceBrush}"
+            BorderBrush="{DynamicResource SurfaceBorderBrush}"
+            BorderThickness="1"
+            BoxShadow="0 4 14 0 #26000000">
+        <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
+
+            <Border Grid.Column="0"
+                    Classes="icone"
+                    Width="32" Height="32"
+                    CornerRadius="16"
+                    VerticalAlignment="Center">
+                <Panel>
+                    <!-- Sucesso: ✓ -->
+                    <PathIcon Width="15" Height="11"
+                              IsVisible="{Binding EhSucesso}"
+                              Data="M5.3,11 L0,5.7 L1.4,4.3 L5.3,8.2 L13.6,0 L15,1.4 Z" />
+                    <!-- Erro: ! -->
+                    <PathIcon Width="3" Height="15"
+                              IsVisible="{Binding EhErro}"
+                              Data="M0,0 H3 V10 H0 Z M0,12 H3 V15 H0 Z" />
+                </Panel>
+            </Border>
+
+            <TextBlock Grid.Column="1"
+                       Text="{Binding Mensagem}"
+                       FontSize="15"
+                       FontWeight="Medium"
+                       TextWrapping="Wrap"
+                       VerticalAlignment="Center" />
+
+            <Button Grid.Column="2"
+                    Classes="acao"
+                    IsVisible="{Binding TemAcao}"
+                    Content="{Binding TextoAcao}"
+                    Command="{Binding ExecutarAcaoCommand}"
+                    VerticalAlignment="Center" />
+
+            <Button Grid.Column="3"
+                    Classes="subtle"
+                    Padding="10"
+                    VerticalAlignment="Center"
+                    Command="{Binding FecharCommand}"
+                    ToolTip.Tip="Fechar aviso">
+                <PathIcon Width="10" Height="10"
+                          Foreground="{DynamicResource TextSecondaryBrush}"
+                          Data="M1.4,0 L5,3.6 L8.6,0 L10,1.4 L6.4,5 L10,8.6 L8.6,10 L5,6.4 L1.4,10 L0,8.6 L3.6,5 L0,1.4 Z" />
+            </Button>
+        </Grid>
+    </Border>
+
+</UserControl>

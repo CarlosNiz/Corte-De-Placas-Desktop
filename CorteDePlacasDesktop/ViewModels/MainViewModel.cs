@@ -1,21 +1,114 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+﻿using System;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace CorteDePlacasDesktop.ViewModels;
 
 /// <summary>
-/// Janela principal: guarda a página exibida no momento e faz a navegação entre telas.
+/// Janela principal: navegação entre telas, diálogo de confirmação e avisos (toasts).
 /// </summary>
 public partial class MainViewModel : ViewModelBase
 {
+    private const int MaximoDeToasts = 3;
+
     public MainViewModel()
     {
         CurrentPage = new HomeViewModel(this);
     }
 
+    // ---- Navegação ----
+
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EstaNoInicio))]
     public partial ViewModelBase CurrentPage { get; set; }
 
-    public void AbrirInicio() => CurrentPage = new HomeViewModel(this);
+    /// <summary>Usado para esconder o botão "Início" da barra quando já estamos nele.</summary>
+    public bool EstaNoInicio => CurrentPage is HomeViewModel;
+
+    [RelayCommand]
+    public async Task AbrirInicioAsync()
+    {
+        if (CurrentPage.TemDadosNaoSalvos)
+        {
+            var sair = await ConfirmarAsync(
+                "Sair do plano de corte?",
+                "As peças que você informou serão descartadas.",
+                "Sair e descartar");
+            if (!sair)
+                return;
+
+            CurrentPage = new HomeViewModel(this);
+            MostrarToast("Plano descartado.");
+            return;
+        }
+
+        CurrentPage = new HomeViewModel(this);
+    }
 
     public void AbrirNovoPlano() => CurrentPage = new NovoPlanoViewModel(this);
+
+    partial void OnCurrentPageChanged(ViewModelBase value)
+    {
+        // Os avisos falam da tela anterior (e um "Desfazer" agiria sobre ela): ao trocar de tela, saem.
+        Toasts.Clear();
+    }
+
+    // ---- Diálogo de confirmação ----
+
+    /// <summary>Diálogo aberto no momento, ou null.</summary>
+    [ObservableProperty]
+    public partial ConfirmacaoViewModel? Dialogo { get; set; }
+
+    /// <summary>Mostra o diálogo e espera a resposta. Retorna true se o operador confirmou.</summary>
+    public async Task<bool> ConfirmarAsync(string titulo, string mensagem, string textoConfirmar,
+        string textoCancelar = "Continuar editando")
+    {
+        var dialogo = new ConfirmacaoViewModel(titulo, mensagem, textoConfirmar, textoCancelar);
+        Dialogo = dialogo;
+        try
+        {
+            return await dialogo.Resposta;
+        }
+        finally
+        {
+            Dialogo = null;
+        }
+    }
+
+    // ---- Toasts ----
+
+    /// <summary>Avisos na tela, o mais recente primeiro.</summary>
+    public ObservableCollection<ToastViewModel> Toasts { get; } = new();
+
+    /// <summary>
+    /// Mostra um aviso rápido. Com <paramref name="textoAcao"/> e <paramref name="acao"/>,
+    /// o aviso ganha um botão (ex.: "Desfazer") e fica mais tempo na tela.
+    /// Avisos do mesmo <paramref name="grupo"/> se substituem em vez de empilhar.
+    /// </summary>
+    public void MostrarToast(string mensagem, TipoToast tipo = TipoToast.Sucesso,
+        string? textoAcao = null, Action? acao = null, string? grupo = null)
+    {
+        if (grupo is not null)
+            foreach (var anterior in Toasts.Where(t => t.Grupo == grupo).ToList())
+                Toasts.Remove(anterior);
+
+        var toast = new ToastViewModel(mensagem, tipo, textoAcao, acao, grupo, FecharToast);
+        Toasts.Insert(0, toast);
+        while (Toasts.Count > MaximoDeToasts)
+            Toasts.RemoveAt(Toasts.Count - 1);
+
+        var duracao = acao is null ? TimeSpan.FromSeconds(4) : TimeSpan.FromSeconds(8);
+        _ = FecharDepoisAsync(toast, duracao);
+    }
+
+    private async Task FecharDepoisAsync(ToastViewModel toast, TimeSpan duracao)
+    {
+        await Task.Delay(duracao);
+        FecharToast(toast);
+    }
+
+    private void FecharToast(ToastViewModel toast) => Toasts.Remove(toast);
 }

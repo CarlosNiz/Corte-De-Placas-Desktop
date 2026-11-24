@@ -1,6 +1,8 @@
+using System;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -18,8 +20,11 @@ public partial class NovoPlanoViewModel : ViewModelBase
     {
         _janela = janela;
         Pecas.CollectionChanged += OnPecasChanged;
-        AdicionarPeca();
+        Pecas.Add(NovaPeca());
     }
+
+    /// <summary>Pede confirmação antes de sair se alguma peça já foi preenchida.</summary>
+    public override bool TemDadosNaoSalvos => Pecas.Any(p => !p.EstaVazia);
 
     // ---- Chapa ----
 
@@ -64,18 +69,50 @@ public partial class NovoPlanoViewModel : ViewModelBase
     [NotifyCanExecuteChangedFor(nameof(CalcularCommand))]
     public partial bool PodeCalcular { get; set; }
 
+    private PecaViewModel NovaPeca() => new(RemoverPeca);
+
     [RelayCommand]
-    private void AdicionarPeca() => Pecas.Add(new PecaViewModel(RemoverPeca));
+    private void AdicionarPeca()
+    {
+        Pecas.Add(NovaPeca());
+        _janela.MostrarToast($"Peça {Pecas.Count} adicionada.", grupo: "peca-adicionada");
+    }
 
     private void RemoverPeca(PecaViewModel peca)
     {
-        Pecas.Remove(peca);
+        var indice = Pecas.IndexOf(peca);
+        if (indice < 0)
+            return;
+
+        Pecas.RemoveAt(indice);
         if (Pecas.Count == 0)
-            AdicionarPeca();
+            Pecas.Add(NovaPeca());
+
+        if (peca.EstaVazia)
+        {
+            _janela.MostrarToast("Linha vazia removida.");
+            return;
+        }
+
+        var nome = string.IsNullOrWhiteSpace(peca.Descricao)
+            ? $"Peça {indice + 1}"
+            : $"Peça “{peca.Descricao.Trim()}”";
+        _janela.MostrarToast($"{nome} removida.", textoAcao: "Desfazer",
+            acao: () => RestaurarPeca(peca, indice, nome));
     }
 
-    [RelayCommand]
-    private void Voltar() => _janela.AbrirInicio();
+    private void RestaurarPeca(PecaViewModel peca, int indice, string nome)
+    {
+        if (Pecas.Contains(peca))
+            return;
+
+        // Se só sobrou a linha vazia criada automaticamente, ela dá lugar à peça restaurada.
+        if (Pecas.Count == 1 && Pecas[0].EstaVazia)
+            Pecas.RemoveAt(0);
+
+        Pecas.Insert(Math.Min(indice, Pecas.Count), peca);
+        _janela.MostrarToast($"{nome} restaurada.");
+    }
 
     // O cálculo do plano de corte será implementado na próxima etapa.
     [RelayCommand(CanExecute = nameof(PodeCalcular))]

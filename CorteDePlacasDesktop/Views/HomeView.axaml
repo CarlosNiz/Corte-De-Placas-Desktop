@@ -49,7 +49,7 @@
     </UserControl.Styles>
 
     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-        <StackPanel MaxWidth="1080" Margin="40,36,40,32" Spacing="40"
+        <StackPanel MaxWidth="1080" Margin="40,32,40,32" Spacing="36"
                     VerticalAlignment="Center">
 
             <!-- Apresentação + exemplo -->
