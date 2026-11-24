@@ -7,12 +7,17 @@ namespace CorteDePlacasDesktop.ViewModels;
 /// </summary>
 public partial class HomeViewModel : ViewModelBase
 {
-    // As telas de destino serão criadas nas próximas etapas.
-    [RelayCommand]
-    private void NovoPlano()
+    private readonly MainViewModel _janela;
+
+    public HomeViewModel(MainViewModel janela)
     {
+        _janela = janela;
     }
 
+    [RelayCommand]
+    private void NovoPlano() => _janela.AbrirNovoPlano();
+
+    // A tela de abrir plano será criada em uma próxima etapa.
     [RelayCommand]
     private void AbrirPlano()
     {

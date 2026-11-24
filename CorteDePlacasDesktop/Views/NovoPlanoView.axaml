@@ -1,0 +1,256 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CorteDePlacasDesktop.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="1180" d:DesignHeight="660"
+             x:Class="CorteDePlacasDesktop.Views.NovoPlanoView"
+             x:DataType="vm:NovoPlanoViewModel"
+             Foreground="{DynamicResource TextPrimaryBrush}">
+
+    <UserControl.KeyBindings>
+        <KeyBinding Gesture="Ctrl+Enter" Command="{Binding AdicionarPecaCommand}" />
+    </UserControl.KeyBindings>
+
+    <UserControl.Styles>
+        <!-- Campos numéricos: sem setas, alinhados à direita -->
+        <Style Selector="NumericUpDown">
+            <Setter Property="ShowButtonSpinner" Value="False" />
+            <Setter Property="FormatString" Value="0.#" />
+            <Setter Property="Minimum" Value="0" />
+            <Setter Property="TextAlignment" Value="Right" />
+        </Style>
+        <Style Selector="TextBlock.unit">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="0,0,10,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+        </Style>
+
+        <!-- Tabela de peças -->
+        <Style Selector="TextBlock.column-header">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+        </Style>
+        <Style Selector="TextBlock.row-number">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+        </Style>
+
+        <!-- Mensagem do rodapé -->
+        <Style Selector="TextBlock.validation">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+        </Style>
+        <Style Selector="TextBlock.validation.danger">
+            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- Cabeçalho -->
+        <StackPanel Grid.Row="0" Margin="32,12,32,20" Spacing="2">
+            <Button Classes="subtle"
+                    Padding="12,8"
+                    Margin="-12,0,0,4"
+                    Command="{Binding VoltarCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <PathIcon Width="8" Height="13" Data="M7,1.4 L5.6,0 L0,5.5 L5.6,11 L7,9.6 L2.8,5.5 Z" />
+                    <TextBlock Text="Início" FontSize="15" FontWeight="Medium" />
+                </StackPanel>
+            </Button>
+            <TextBlock Text="Novo plano de corte" FontSize="24" FontWeight="Bold" />
+            <TextBlock Text="Informe a chapa e as peças que precisa cortar."
+                       FontSize="14"
+                       Foreground="{DynamicResource TextSecondaryBrush}" />
+        </StackPanel>
+
+        <!-- Conteúdo -->
+        <Grid Grid.Row="1" ColumnDefinitions="320,*" ColumnSpacing="20" Margin="32,0,32,24">
+
+            <!-- Chapa -->
+            <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Disabled">
+                <Border Classes="card" VerticalAlignment="Top">
+                    <StackPanel Spacing="16">
+                        <TextBlock Classes="section-title" Text="Chapa" />
+
+                        <StackPanel>
+                            <TextBlock Classes="label" Text="Material (opcional)" />
+                            <TextBox Text="{Binding Material}" PlaceholderText="Ex.: MDF branco 18 mm" />
+                        </StackPanel>
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Classes="label" Text="Comprimento" />
+                                <NumericUpDown Value="{Binding ChapaComprimento}">
+                                    <NumericUpDown.InnerRightContent>
+                                        <TextBlock Classes="unit" Text="mm" />
+                                    </NumericUpDown.InnerRightContent>
+                                </NumericUpDown>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Classes="label" Text="Largura" />
+                                <NumericUpDown Value="{Binding ChapaLargura}">
+                                    <NumericUpDown.InnerRightContent>
+                                        <TextBlock Classes="unit" Text="mm" />
+                                    </NumericUpDown.InnerRightContent>
+                                </NumericUpDown>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Classes="label" Text="Espessura da serra" />
+                                <NumericUpDown Value="{Binding EspessuraSerra}">
+                                    <NumericUpDown.InnerRightContent>
+                                        <TextBlock Classes="unit" Text="mm" />
+                                    </NumericUpDown.InnerRightContent>
+                                </NumericUpDown>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Classes="label" Text="Refilo" />
+                                <NumericUpDown Value="{Binding Refilo}">
+                                    <NumericUpDown.InnerRightContent>
+                                        <TextBlock Classes="unit" Text="mm" />
+                                    </NumericUpDown.InnerRightContent>
+                                </NumericUpDown>
+                            </StackPanel>
+                        </Grid>
+
+                        <TextBlock Classes="hint"
+                                   Text="A espessura da serra é o material perdido em cada corte. O refilo é a margem descartada em cada borda da chapa." />
+
+                        <Border Background="{DynamicResource PageBackgroundBrush}"
+                                CornerRadius="8"
+                                Padding="12,10">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="Área útil"
+                                           FontSize="13"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding AreaUtil}"
+                                           FontSize="13"
+                                           FontWeight="SemiBold" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </ScrollViewer>
+
+            <!-- Peças -->
+            <Border Grid.Column="1" Classes="card" Padding="20,20,20,8">
+                <Grid RowDefinitions="Auto,Auto,*">
+
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+                        <TextBlock Classes="section-title" Text="Peças" VerticalAlignment="Center" />
+                        <Button Grid.Column="1"
+                                Classes="secondary"
+                                Command="{Binding AdicionarPecaCommand}"
+                                ToolTip.Tip="Adicionar peça (Ctrl+Enter)">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <PathIcon Width="11" Height="11"
+                                          Data="M7,0 H9 V7 H16 V9 H9 V16 H7 V9 H0 V7 H7 Z" />
+                                <TextBlock Text="Adicionar peça" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <!-- Cabeçalho da tabela (mesmas colunas das linhas) -->
+                    <Grid Grid.Row="1"
+                          ColumnDefinitions="28,*,128,128,76,52,36"
+                          ColumnSpacing="8"
+                          Margin="0,0,0,8">
+                        <TextBlock Grid.Column="0" Classes="column-header" Text="#" />
+                        <TextBlock Grid.Column="1" Classes="column-header" Text="Descrição" />
+                        <TextBlock Grid.Column="2" Classes="column-header" Text="Comprimento (mm)" />
+                        <TextBlock Grid.Column="3" Classes="column-header" Text="Largura (mm)" />
+                        <TextBlock Grid.Column="4" Classes="column-header" Text="Qtd." />
+                        <TextBlock Grid.Column="5" Classes="column-header" Text="Girar"
+                                   HorizontalAlignment="Center"
+                                   ToolTip.Tip="Permite girar a peça 90° na chapa. Desmarque quando o veio precisa ser respeitado." />
+                    </Grid>
+
+                    <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl x:Name="ListaPecas" ItemsSource="{Binding Pecas}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:PecaViewModel">
+                                    <StackPanel Margin="0,0,0,8" Spacing="4">
+                                        <Grid ColumnDefinitions="28,*,128,128,76,52,36" ColumnSpacing="8">
+                                            <TextBlock Grid.Column="0" Classes="row-number" Text="{Binding Numero}" />
+                                            <TextBox Grid.Column="1"
+                                                     Text="{Binding Descricao}"
+                                                     PlaceholderText="Ex.: Lateral" />
+                                            <NumericUpDown Grid.Column="2"
+                                                           Value="{Binding Comprimento}" />
+                                            <NumericUpDown Grid.Column="3"
+                                                           Value="{Binding Largura}" />
+                                            <NumericUpDown Grid.Column="4"
+                                                           Value="{Binding Quantidade}"
+                                                           Minimum="1"
+                                                           FormatString="0"
+                                                           ParsingNumberStyle="Integer" />
+                                            <CheckBox Grid.Column="5"
+                                                      IsChecked="{Binding PodeGirar}"
+                                                      MinWidth="0"
+                                                      Padding="0"
+                                                      HorizontalAlignment="Center"
+                                                      ToolTip.Tip="Permite girar a peça 90° na chapa" />
+                                            <Button Grid.Column="6"
+                                                    Classes="subtle"
+                                                    Padding="10"
+                                                    Command="{Binding RemoverCommand}"
+                                                    ToolTip.Tip="Remover peça">
+                                                <PathIcon Width="10" Height="10"
+                                                          Foreground="{DynamicResource TextSecondaryBrush}"
+                                                          Data="M1.4,0 L5,3.6 L8.6,0 L10,1.4 L6.4,5 L10,8.6 L8.6,10 L5,6.4 L1.4,10 L0,8.6 L3.6,5 L0,1.4 Z" />
+                                            </Button>
+                                        </Grid>
+                                        <TextBlock Classes="hint danger"
+                                                   Margin="36,0,0,0"
+                                                   Text="{Binding Aviso}"
+                                                   IsVisible="{Binding Aviso, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Rodapé -->
+        <Border Grid.Row="2"
+                Padding="32,14"
+                Background="{DynamicResource SurfaceBrush}"
+                BorderBrush="{DynamicResource SurfaceBorderBrush}"
+                BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+                <TextBlock Grid.Column="0"
+                           Text="{Binding Resumo}"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1"
+                           Classes="validation"
+                           Classes.danger="{Binding MensagemEhErro}"
+                           Text="{Binding MensagemValidacao}"
+                           HorizontalAlignment="Right"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" />
+                <Button Grid.Column="2"
+                        Classes="accent"
+                        Padding="20,10"
+                        Command="{Binding CalcularCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <TextBlock Text="Calcular plano" FontWeight="SemiBold" />
+                        <PathIcon Width="12" Height="11"
+                                  Data="M6.6,0 L5.2,1.4 L8.3,4.5 H0 V6.5 H8.3 L5.2,9.6 L6.6,11 L12,5.5 Z" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Border>
+    </Grid>
+
+</UserControl>

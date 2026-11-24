@@ -22,6 +22,7 @@
                     <SolidColorBrush x:Key="BrandSoftBrush" Color="#FDEBDD" />
                     <SolidColorBrush x:Key="SheetBrush" Color="#EFE6D8" />
                     <SolidColorBrush x:Key="SheetBorderBrush" Color="#B9A98F" />
+                    <SolidColorBrush x:Key="DangerBrush" Color="#B42318" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="PageBackgroundBrush" Color="#16181C" />
@@ -33,6 +34,7 @@
                     <SolidColorBrush x:Key="BrandSoftBrush" Color="#3A2416" />
                     <SolidColorBrush x:Key="SheetBrush" Color="#2B2721" />
                     <SolidColorBrush x:Key="SheetBorderBrush" Color="#5C5245" />
+                    <SolidColorBrush x:Key="DangerBrush" Color="#F97066" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
@@ -45,5 +47,49 @@
                 <ColorPaletteResources x:Key="Dark" Accent="#EA580C" />
             </FluentTheme.Palettes>
         </FluentTheme>
+
+        <!-- Estilos comuns a todas as telas -->
+
+        <!-- Cartão -->
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SurfaceBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="20" />
+        </Style>
+
+        <!-- Botão secundário com contorno -->
+        <Style Selector="Button.secondary">
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SurfaceBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+
+        <!-- Botão discreto, sem fundo -->
+        <Style Selector="Button.subtle">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+
+        <!-- Títulos e textos de apoio -->
+        <Style Selector="TextBlock.section-title">
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="LineHeight" Value="18" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+        </Style>
+        <Style Selector="TextBlock.danger">
+            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+        </Style>
     </Application.Styles>
 </Application>
