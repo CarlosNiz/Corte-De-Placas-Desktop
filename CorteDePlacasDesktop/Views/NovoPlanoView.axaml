@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CorteDePlacasDesktop.ViewModels"
+             xmlns:controls="using:CorteDePlacasDesktop.Controls"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="1180" d:DesignHeight="660"
@@ -44,6 +45,22 @@
             <Setter Property="BorderBrush" Value="{DynamicResource BrandBrush}" />
         </Style>
 
+        <!-- Prévia clicável do formato da chapa -->
+        <Style Selector="Button.formato">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="10" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Background" Value="{DynamicResource PageBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SurfaceBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1.5" />
+        </Style>
+        <Style Selector="Button.formato:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource PageBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BrandBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+        </Style>
+
         <!-- Tabela de peças -->
         <Style Selector="TextBlock.column-header">
             <Setter Property="FontSize" Value="12" />
@@ -82,7 +99,7 @@
             <!-- Chapa -->
             <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Disabled">
                 <Border Classes="card" VerticalAlignment="Top">
-                    <StackPanel Spacing="16">
+                    <StackPanel Spacing="12">
                         <TextBlock Classes="section-title" Text="Chapa" />
 
                         <StackPanel>
@@ -90,7 +107,50 @@
                             <TextBox Text="{Binding Material}" PlaceholderText="Ex.: MDF branco 18 mm" />
                         </StackPanel>
 
-                        <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                        <!-- Prévia do formato: clicar abre o editor -->
+                        <Button Classes="formato"
+                                Command="{Binding DesenharFormatoCommand}"
+                                ToolTip.Tip="Abrir o editor para desenhar o formato da chapa">
+                            <StackPanel Spacing="8">
+                                <controls:PreviaChapa Formato="{Binding Formato}" Height="104" />
+                                <TextBlock Text="{Binding DescricaoFormato}"
+                                           FontSize="13"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap" />
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,-6,0,0">
+                                    <TextBlock Grid.Column="0"
+                                               Text="{Binding MedidasFormato}"
+                                               FontSize="12"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                                    <StackPanel Grid.Column="1"
+                                                Orientation="Horizontal"
+                                                Spacing="6"
+                                                VerticalAlignment="Center">
+                                        <PathIcon Width="14" Height="14"
+                                                  Foreground="{DynamicResource BrandBrush}"
+                                                  Data="M0,10.9 V14 H3.1 L11,6.1 L7.9,3 Z M13.7,3.4 C14.1,3 14.1,2.4 13.7,2 L12,0.3 C11.6,-0.1 11,-0.1 10.6,0.3 L9.1,1.8 L12.2,4.9 Z" />
+                                        <TextBlock Text="Desenhar"
+                                                   FontSize="14"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource BrandBrush}" />
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Chapa desenhada: as medidas vêm do desenho -->
+                        <Button Classes="secondary"
+                                IsVisible="{Binding EhFormatoPersonalizado}"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                Padding="12,9"
+                                Command="{Binding UsarRetanguloCommand}"
+                                Content="Voltar para retângulo simples" />
+
+                        <!-- Chapa retangular: medidas digitadas -->
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="12"
+                              IsVisible="{Binding !EhFormatoPersonalizado}">
                             <StackPanel Grid.Column="0">
                                 <TextBlock Classes="label" Text="Comprimento" />
                                 <NumericUpDown Value="{Binding ChapaComprimento}">
@@ -111,7 +171,8 @@
 
                         <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                             <StackPanel Grid.Column="0">
-                                <TextBlock Classes="label" Text="Espessura da serra" />
+                                <TextBlock Classes="label" Text="Espessura da serra"
+                                           ToolTip.Tip="Material perdido em cada corte (a largura do disco da serra)." />
                                 <NumericUpDown Value="{Binding EspessuraSerra}">
                                     <NumericUpDown.InnerRightContent>
                                         <TextBlock Classes="unit" Text="mm" />
@@ -119,7 +180,8 @@
                                 </NumericUpDown>
                             </StackPanel>
                             <StackPanel Grid.Column="1">
-                                <TextBlock Classes="label" Text="Refilo" />
+                                <TextBlock Classes="label" Text="Refilo"
+                                           ToolTip.Tip="Margem descartada em todas as bordas da chapa." />
                                 <NumericUpDown Value="{Binding Refilo}">
                                     <NumericUpDown.InnerRightContent>
                                         <TextBlock Classes="unit" Text="mm" />
@@ -127,23 +189,6 @@
                                 </NumericUpDown>
                             </StackPanel>
                         </Grid>
-
-                        <TextBlock Classes="hint"
-                                   Text="A espessura da serra é o material perdido em cada corte. O refilo é a margem descartada em cada borda da chapa." />
-
-                        <Border Background="{DynamicResource PageBackgroundBrush}"
-                                CornerRadius="8"
-                                Padding="12,10">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Text="Área útil"
-                                           FontSize="13"
-                                           Foreground="{DynamicResource TextSecondaryBrush}" />
-                                <TextBlock Grid.Column="1"
-                                           Text="{Binding AreaUtil}"
-                                           FontSize="13"
-                                           FontWeight="SemiBold" />
-                            </Grid>
-                        </Border>
                     </StackPanel>
                 </Border>
             </ScrollViewer>

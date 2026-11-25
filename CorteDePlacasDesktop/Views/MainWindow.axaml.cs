@@ -34,7 +34,7 @@ public partial class MainWindow : Window
 
         var fechar = await vm.ConfirmarAsync(
             "Fechar o aplicativo?",
-            "As peças que você informou serão descartadas.",
+            "O plano que você está montando (chapa e peças) será descartado.",
             "Fechar e descartar");
         if (fechar)
         {

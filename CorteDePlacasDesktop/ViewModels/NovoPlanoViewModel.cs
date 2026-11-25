@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CorteDePlacasDesktop.Models;
 
 namespace CorteDePlacasDesktop.ViewModels;
 
@@ -15,6 +16,7 @@ namespace CorteDePlacasDesktop.ViewModels;
 public partial class NovoPlanoViewModel : ViewModelBase
 {
     private readonly MainViewModel _janela;
+    private bool _sincronizandoMedidas;
 
     public NovoPlanoViewModel(MainViewModel janela)
     {
@@ -23,19 +25,71 @@ public partial class NovoPlanoViewModel : ViewModelBase
         Pecas.Add(NovaPeca());
     }
 
-    /// <summary>Pede confirmação antes de sair se alguma peça já foi preenchida.</summary>
-    public override bool TemDadosNaoSalvos => Pecas.Any(p => !p.EstaVazia);
+    /// <summary>Pede confirmação antes de sair se alguma peça foi preenchida ou a chapa foi desenhada.</summary>
+    public override bool TemDadosNaoSalvos => Pecas.Any(p => !p.EstaVazia) || EhFormatoPersonalizado;
 
     // ---- Chapa ----
 
     [ObservableProperty]
     public partial string Material { get; set; } = "";
 
+    /// <summary>Formato da chapa: um retângulo ou um contorno desenhado, com defeitos.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EhFormatoPersonalizado), nameof(DescricaoFormato), nameof(MedidasFormato))]
+    public partial FormatoChapa Formato { get; set; } = FormatoChapa.RetanguloSimples(2750, 1850);
+
+    public bool EhFormatoPersonalizado => !Formato.EhRetanguloSimples;
+
+    public string DescricaoFormato
+    {
+        get
+        {
+            if (!EhFormatoPersonalizado)
+                return "Retângulo";
+            var cantos = $"{Formato.Contorno.Count} cantos";
+            return Formato.Defeitos.Count switch
+            {
+                0 => $"Formato desenhado · {cantos}",
+                1 => $"Formato desenhado · {cantos} · 1 defeito",
+                var n => $"Formato desenhado · {cantos} · {n} defeitos",
+            };
+        }
+    }
+
+    public string MedidasFormato =>
+        $"{Formato.Limites.Comprimento:0.#} × {Formato.Limites.Largura:0.#} mm · {Formato.Area / 1_000_000:0.00} m²";
+
+    /// <summary>Comprimento da chapa retangular (quando a chapa é desenhada, mostra a medida externa).</summary>
     [ObservableProperty]
     public partial decimal? ChapaComprimento { get; set; } = 2750;
 
     [ObservableProperty]
     public partial decimal? ChapaLargura { get; set; } = 1850;
+
+    /// <summary>Usado pelo editor ao concluir o desenho.</summary>
+    public void DefinirFormato(FormatoChapa formato)
+    {
+        _sincronizandoMedidas = true;
+        Formato = formato;
+        ChapaComprimento = (decimal)Math.Round(formato.Limites.Comprimento, 1);
+        ChapaLargura = (decimal)Math.Round(formato.Limites.Largura, 1);
+        _sincronizandoMedidas = false;
+        Atualizar();
+    }
+
+    [RelayCommand]
+    private void DesenharFormato() => _janela.Mostrar(new EditorChapaViewModel(_janela, this));
+
+    [RelayCommand]
+    private void UsarRetangulo()
+    {
+        var anterior = Formato;
+        DefinirFormato(FormatoChapa.RetanguloSimples(anterior.Limites.Comprimento, anterior.Limites.Largura));
+        _janela.MostrarToast($"A chapa voltou a ser um retângulo de {MedidasDoRetangulo()}.",
+            textoAcao: "Desfazer", acao: () => DefinirFormato(anterior));
+    }
+
+    private string MedidasDoRetangulo() => $"{Formato.Limites.Comprimento:0.#} × {Formato.Limites.Largura:0.#} mm";
 
     /// <summary>Largura do corte da serra (kerf), perdida a cada corte.</summary>
     [ObservableProperty]
@@ -50,9 +104,6 @@ public partial class NovoPlanoViewModel : ViewModelBase
     public ObservableCollection<PecaViewModel> Pecas { get; } = new();
 
     // ---- Resumo e validação ----
-
-    [ObservableProperty]
-    public partial string AreaUtil { get; set; } = "";
 
     [ObservableProperty]
     public partial string Resumo { get; set; } = "";
@@ -123,8 +174,14 @@ public partial class NovoPlanoViewModel : ViewModelBase
     protected override void OnPropertyChanged(PropertyChangedEventArgs e)
     {
         base.OnPropertyChanged(e);
-        if (e.PropertyName is nameof(ChapaComprimento) or nameof(ChapaLargura)
-            or nameof(EspessuraSerra) or nameof(Refilo))
+        if (e.PropertyName is nameof(ChapaComprimento) or nameof(ChapaLargura) && !_sincronizandoMedidas)
+        {
+            // Chapa retangular: as medidas digitadas definem o formato.
+            if (!EhFormatoPersonalizado && ChapaComprimento > 0 && ChapaLargura > 0)
+                Formato = FormatoChapa.RetanguloSimples((double)ChapaComprimento, (double)ChapaLargura);
+            Atualizar();
+        }
+        else if (e.PropertyName is nameof(EspessuraSerra) or nameof(Refilo))
         {
             Atualizar();
         }
@@ -152,24 +209,25 @@ public partial class NovoPlanoViewModel : ViewModelBase
         Atualizar();
     }
 
-    /// <summary>Recalcula área útil, resumo, avisos das peças e se já dá para calcular.</summary>
+    /// <summary>Recalcula resumo, avisos das peças e se já dá para calcular.</summary>
     private void Atualizar()
     {
-        var refilo = Refilo ?? 0;
-        var utilComprimento = (ChapaComprimento ?? 0) - 2 * refilo;
-        var utilLargura = (ChapaLargura ?? 0) - 2 * refilo;
+        var refilo = (double)(Refilo ?? 0);
+        var limites = Formato.Limites;
+        var utilComprimento = limites.Comprimento - 2 * refilo;
+        var utilLargura = limites.Largura - 2 * refilo;
 
         string? erroChapa = null;
-        if (!(ChapaComprimento > 0) || !(ChapaLargura > 0))
+        if (!EhFormatoPersonalizado && (!(ChapaComprimento > 0) || !(ChapaLargura > 0)))
             erroChapa = "Informe o comprimento e a largura da chapa.";
         else if (EspessuraSerra is null)
             erroChapa = "Informe a espessura da serra.";
         else if (Refilo is null)
             erroChapa = "Informe o refilo.";
+        else if (Formato.Validar() is { } erroFormato)
+            erroChapa = $"Formato da chapa: {erroFormato}";
         else if (utilComprimento <= 0 || utilLargura <= 0)
             erroChapa = "O refilo é maior que a chapa.";
-
-        AreaUtil = erroChapa is null ? $"{utilComprimento:0.#} × {utilLargura:0.#} mm" : "—";
 
         var incompletas = 0;
         var naoCabem = 0;
@@ -193,14 +251,18 @@ public partial class NovoPlanoViewModel : ViewModelBase
             totalPecas += q;
             areaTotal += c * l * q;
 
-            var cabe = (c <= utilComprimento && l <= utilLargura)
-                       || (peca.PodeGirar && l <= utilComprimento && c <= utilLargura);
-            if (erroChapa is null && !cabe)
+            if (erroChapa is not null)
+                continue;
+
+            var cabe = Formato.Cabe((double)c, (double)l, refilo)
+                       || (peca.PodeGirar && Formato.Cabe((double)l, (double)c, refilo));
+            if (!cabe)
             {
                 naoCabem++;
-                peca.Aviso = peca.PodeGirar
-                    ? $"Não cabe na área útil da chapa ({AreaUtil})."
-                    : $"Não cabe na área útil da chapa ({AreaUtil}) sem girar.";
+                var semGirar = peca.PodeGirar ? "" : " sem girar";
+                peca.Aviso = EhFormatoPersonalizado
+                    ? $"Não cabe em nenhuma parte da chapa{semGirar} (descontando refilo e defeitos)."
+                    : $"Não cabe na área útil da chapa ({utilComprimento:0.#} × {utilLargura:0.#} mm){semGirar}.";
             }
         }
 

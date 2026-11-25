@@ -1,0 +1,253 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CorteDePlacasDesktop.ViewModels"
+             xmlns:controls="using:CorteDePlacasDesktop.Controls"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="1180" d:DesignHeight="660"
+             x:Class="CorteDePlacasDesktop.Views.EditorChapaView"
+             x:DataType="vm:EditorChapaViewModel"
+             Foreground="{DynamicResource TextPrimaryBrush}">
+
+    <UserControl.Styles>
+        <!-- Botões de modo (Ajustar / Desenhar / Defeito) -->
+        <Style Selector="Button.modo">
+            <Setter Property="Padding" Value="16,10" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SurfaceBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1.5" />
+        </Style>
+        <Style Selector="Button.modo.ativo /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BrandSoftBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BrandBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource BrandBrush}" />
+        </Style>
+
+        <!-- Campos numéricos -->
+        <Style Selector="NumericUpDown">
+            <Setter Property="ShowButtonSpinner" Value="False" />
+            <Setter Property="FormatString" Value="0.#" />
+            <Setter Property="TextAlignment" Value="Right" />
+            <Setter Property="Minimum" Value="-100000" />
+            <Setter Property="Maximum" Value="100000" />
+        </Style>
+        <Style Selector="TextBlock.column-header">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+        </Style>
+
+        <!-- Linha da tabela de cantos -->
+        <Style Selector="Border.linha">
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="4" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.linha.selecionada">
+            <Setter Property="Background" Value="{DynamicResource BrandSoftBrush}" />
+        </Style>
+
+        <Style Selector="TextBlock.validation">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+        </Style>
+        <Style Selector="TextBlock.validation.danger">
+            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+        <!-- Cabeçalho -->
+        <StackPanel Grid.Row="0" Margin="32,20,32,14" Spacing="2">
+            <TextBlock Text="Formato da chapa" FontSize="24" FontWeight="Bold" />
+            <TextBlock Text="{Binding Ajuda}"
+                       FontSize="15"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource TextSecondaryBrush}" />
+        </StackPanel>
+
+        <!-- Ferramentas -->
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" Margin="32,0,32,14">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
+                <Button Classes="modo" Classes.ativo="{Binding EmAjuste}" Command="{Binding ModoAjustarCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <PathIcon Width="11" Height="16"
+                                  Data="M0,0 L0,14 L3.6,10.6 L6,16 L8.2,15 L5.8,9.8 L11,9.8 Z" />
+                        <TextBlock Text="Ajustar cantos" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="modo" Classes.ativo="{Binding EmDesenho}" Command="{Binding DesenharContornoCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <PathIcon Width="16" Height="16"
+                                  Data="M0,12.5 V16 H3.5 L12.6,6.9 L9.1,3.4 Z M15.7,3.8 C16.1,3.4 16.1,2.8 15.7,2.4 L13.6,0.3 C13.2,-0.1 12.6,-0.1 12.2,0.3 L10.5,2 L14,5.5 Z" />
+                        <TextBlock Text="Desenhar novo contorno" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="modo" Classes.ativo="{Binding EmDefeito}" Command="{Binding MarcarDefeitoCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <PathIcon Width="17" Height="15"
+                                  Data="M8.5,0 L17,15 H0 Z M7.6,5 V10 H9.4 V5 Z M7.6,11.3 V13.2 H9.4 V11.3 Z" />
+                        <TextBlock Text="Marcar defeito" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+
+            <!-- Atalho: começar de um retângulo -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <TextBlock Text="Retângulo" FontSize="14" FontWeight="Medium" VerticalAlignment="Center" />
+                <NumericUpDown Width="96" Value="{Binding RetanguloComprimento}" Minimum="0"
+                               ToolTip.Tip="Comprimento (mm)" />
+                <TextBlock Text="×" FontSize="15" VerticalAlignment="Center" />
+                <NumericUpDown Width="96" Value="{Binding RetanguloLargura}" Minimum="0"
+                               ToolTip.Tip="Largura (mm)" />
+                <TextBlock Text="mm" FontSize="13" VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                <Button Classes="secondary" Padding="14,8" Command="{Binding AplicarRetanguloCommand}"
+                        Content="Aplicar" FontWeight="SemiBold"
+                        ToolTip.Tip="Troca o contorno por um retângulo com essas medidas" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Desenho + tabela -->
+        <Grid Grid.Row="2" ColumnDefinitions="*,300" ColumnSpacing="20" Margin="32,0,32,20">
+
+            <Border Grid.Column="0"
+                    CornerRadius="12"
+                    ClipToBounds="True"
+                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
+                    BorderThickness="1">
+                <controls:EditorChapaCanvas x:Name="Desenho" Editor="{Binding}" />
+            </Border>
+
+            <Border Grid.Column="1" Classes="card" Padding="16">
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Spacing="20">
+
+                        <!-- Cantos -->
+                        <StackPanel Spacing="6">
+                            <TextBlock Classes="section-title" Text="Cantos" />
+                            <Grid ColumnDefinitions="24,*,*,34" ColumnSpacing="6" Margin="4,0">
+                                <TextBlock Grid.Column="0" Classes="column-header" Text="#" />
+                                <TextBlock Grid.Column="1" Classes="column-header" Text="X (mm)" />
+                                <TextBlock Grid.Column="2" Classes="column-header" Text="Y (mm)" />
+                            </Grid>
+                            <ItemsControl x:Name="ListaCantos" ItemsSource="{Binding Cantos}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:CantoViewModel">
+                                        <Border Classes="linha" Classes.selecionada="{Binding Selecionado}" Margin="0,0,0,2">
+                                            <Grid ColumnDefinitions="24,*,*,34" ColumnSpacing="6">
+                                                <TextBlock Grid.Column="0"
+                                                           Text="{Binding Numero}"
+                                                           FontWeight="SemiBold"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource BrandBrush}" />
+                                                <NumericUpDown Grid.Column="1" Value="{Binding X}" />
+                                                <NumericUpDown Grid.Column="2" Value="{Binding Y}" />
+                                                <Button Grid.Column="3"
+                                                        Classes="subtle"
+                                                        Padding="9"
+                                                        Command="{Binding RemoverCommand}"
+                                                        ToolTip.Tip="Remover canto">
+                                                    <PathIcon Width="10" Height="10"
+                                                              Foreground="{DynamicResource TextSecondaryBrush}"
+                                                              Data="M1.4,0 L5,3.6 L8.6,0 L10,1.4 L6.4,5 L10,8.6 L8.6,10 L5,6.4 L1.4,10 L0,8.6 L3.6,5 L0,1.4 Z" />
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <!-- Defeitos -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Classes="section-title" Text="Defeitos" />
+                            <TextBlock Classes="hint"
+                                       IsVisible="{Binding !Defeitos.Count}"
+                                       Text="Nenhum defeito marcado. Use “Marcar defeito” e arraste sobre a chapa." />
+                            <ItemsControl ItemsSource="{Binding Defeitos}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:DefeitoViewModel">
+                                        <Border Margin="0,0,0,10"
+                                                Padding="10"
+                                                CornerRadius="8"
+                                                Background="{DynamicResource DangerSoftBrush}">
+                                            <StackPanel Spacing="8">
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <TextBlock VerticalAlignment="Center"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource DangerBrush}">
+                                                        <Run Text="Defeito " /><Run Text="{Binding Numero}" />
+                                                    </TextBlock>
+                                                    <Button Grid.Column="1"
+                                                            Classes="subtle"
+                                                            Padding="9"
+                                                            Command="{Binding RemoverCommand}"
+                                                            ToolTip.Tip="Remover defeito">
+                                                        <PathIcon Width="10" Height="10"
+                                                                  Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                  Data="M1.4,0 L5,3.6 L8.6,0 L10,1.4 L6.4,5 L10,8.6 L8.6,10 L5,6.4 L1.4,10 L0,8.6 L3.6,5 L0,1.4 Z" />
+                                                    </Button>
+                                                </Grid>
+                                                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto"
+                                                      ColumnSpacing="8" RowSpacing="2">
+                                                    <TextBlock Grid.Row="0" Grid.Column="0" Classes="column-header" Text="X (mm)" />
+                                                    <TextBlock Grid.Row="0" Grid.Column="1" Classes="column-header" Text="Y (mm)" />
+                                                    <NumericUpDown Grid.Row="1" Grid.Column="0" Value="{Binding X}" />
+                                                    <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding Y}" />
+                                                    <TextBlock Grid.Row="2" Grid.Column="0" Classes="column-header" Text="Comprimento" Margin="0,6,0,0" />
+                                                    <TextBlock Grid.Row="2" Grid.Column="1" Classes="column-header" Text="Largura" Margin="0,6,0,0" />
+                                                    <NumericUpDown Grid.Row="3" Grid.Column="0" Value="{Binding Comprimento}" Minimum="0" />
+                                                    <NumericUpDown Grid.Row="3" Grid.Column="1" Value="{Binding Largura}" Minimum="0" />
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+        <!-- Rodapé -->
+        <Border Grid.Row="3"
+                Padding="32,14"
+                Background="{DynamicResource SurfaceBrush}"
+                BorderBrush="{DynamicResource SurfaceBorderBrush}"
+                BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+                <TextBlock Grid.Column="0"
+                           Text="{Binding Resumo}"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1"
+                           Classes="validation"
+                           Classes.danger="{Binding !EmDesenho}"
+                           Text="{Binding Erro}"
+                           HorizontalAlignment="Right"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" />
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12">
+                    <Button Classes="secondary" Padding="20,10" FontWeight="SemiBold"
+                            Content="Cancelar"
+                            Command="{Binding CancelarCommand}" />
+                    <Button Classes="accent" Padding="20,10"
+                            Command="{Binding ConcluirCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <PathIcon Width="14" Height="11"
+                                      Data="M5,11 L0,6 L1.4,4.6 L5,8.2 L12.6,0.6 L14,2 Z" />
+                            <TextBlock Text="Usar este formato" FontWeight="SemiBold" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+
+</UserControl>

@@ -35,7 +35,7 @@ public partial class MainViewModel : ViewModelBase
         {
             var sair = await ConfirmarAsync(
                 "Sair do plano de corte?",
-                "As peças que você informou serão descartadas.",
+                "O plano que você está montando (chapa e peças) será descartado.",
                 "Sair e descartar");
             if (!sair)
                 return;
@@ -49,6 +49,9 @@ public partial class MainViewModel : ViewModelBase
     }
 
     public void AbrirNovoPlano() => CurrentPage = new NovoPlanoViewModel(this);
+
+    /// <summary>Mostra uma página que já existe (ex.: voltar do editor da chapa para o plano).</summary>
+    public void Mostrar(ViewModelBase pagina) => CurrentPage = pagina;
 
     partial void OnCurrentPageChanged(ViewModelBase value)
     {
