@@ -32,17 +32,22 @@ internal static class DesenhoChapa
         return geometria;
     }
 
-    /// <summary>Área com defeito: fundo avermelhado, hachurado e contorno tracejado.</summary>
-    public static void Defeito(DrawingContext ctx, Rect area, IBrush fundo, IBrush cor, double espessura = 1.5)
+    /// <summary>Região com várias partes e furos (regra par-ímpar: furo fica vazado).</summary>
+    public static StreamGeometry Regiao(IReadOnlyList<IReadOnlyList<Point>> contornos)
     {
-        ctx.DrawRectangle(fundo, null, area);
-        using (ctx.PushClip(area))
+        var geometria = new StreamGeometry();
+        using var contexto = geometria.Open();
+        contexto.SetFillRule(FillRule.EvenOdd);
+        foreach (var contorno in contornos)
         {
-            var hachura = new Pen(cor, 1);
-            for (var d = -area.Height; d < area.Width; d += 9)
-                ctx.DrawLine(hachura, new Point(area.X + d, area.Bottom), new Point(area.X + d + area.Height, area.Y));
+            if (contorno.Count < 2)
+                continue;
+            contexto.BeginFigure(contorno[0], true);
+            for (var i = 1; i < contorno.Count; i++)
+                contexto.LineTo(contorno[i]);
+            contexto.EndFigure(true);
         }
-        ctx.DrawRectangle(null, new Pen(cor, espessura, new DashStyle([4, 2], 0)), area);
+        return geometria;
     }
 
     public static FormattedText Texto(string texto, double tamanho, IBrush cor, bool forte = false) =>

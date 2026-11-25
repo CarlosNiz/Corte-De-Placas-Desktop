@@ -33,7 +33,7 @@ public partial class NovoPlanoViewModel : ViewModelBase
     [ObservableProperty]
     public partial string Material { get; set; } = "";
 
-    /// <summary>Formato da chapa: um retângulo ou um contorno desenhado, com defeitos.</summary>
+    /// <summary>Formato da chapa: um retângulo ou um contorno desenhado, com retângulos e círculos que tiram ou somam área.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(EhFormatoPersonalizado), nameof(DescricaoFormato), nameof(MedidasFormato))]
     public partial FormatoChapa Formato { get; set; } = FormatoChapa.RetanguloSimples(2750, 1850);
@@ -47,11 +47,11 @@ public partial class NovoPlanoViewModel : ViewModelBase
             if (!EhFormatoPersonalizado)
                 return "Retângulo";
             var cantos = $"{Formato.Contorno.Count} cantos";
-            return Formato.Defeitos.Count switch
+            return Formato.Formas.Count switch
             {
                 0 => $"Formato desenhado · {cantos}",
-                1 => $"Formato desenhado · {cantos} · 1 defeito",
-                var n => $"Formato desenhado · {cantos} · {n} defeitos",
+                1 => $"Formato desenhado · {cantos} · 1 forma",
+                var n => $"Formato desenhado · {cantos} · {n} formas",
             };
         }
     }
@@ -261,7 +261,7 @@ public partial class NovoPlanoViewModel : ViewModelBase
                 naoCabem++;
                 var semGirar = peca.PodeGirar ? "" : " sem girar";
                 peca.Aviso = EhFormatoPersonalizado
-                    ? $"Não cabe em nenhuma parte da chapa{semGirar} (descontando refilo e defeitos)."
+                    ? $"Não cabe em nenhuma parte da chapa{semGirar} (descontando o refilo)."
                     : $"Não cabe na área útil da chapa ({utilComprimento:0.#} × {utilLargura:0.#} mm){semGirar}.";
             }
         }

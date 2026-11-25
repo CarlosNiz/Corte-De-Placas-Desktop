@@ -64,12 +64,13 @@
                             VerticalAlignment="Center" />
         </Border>
 
-        <!-- Avisos (toasts), no alto e ao centro, abaixo da barra -->
+        <!-- Avisos (toasts), embaixo e ao centro, logo acima do rodapé das telas
+             (assim não cobrem as ferramentas do alto) -->
         <ItemsControl Grid.Row="1"
                       ItemsSource="{Binding Toasts}"
                       HorizontalAlignment="Center"
-                      VerticalAlignment="Top"
-                      Margin="0,8,0,0">
+                      VerticalAlignment="Bottom"
+                      Margin="0,0,0,72">
             <!-- O espaço entre os avisos vem da margem de cada um (reserva lugar para a sombra) -->
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>

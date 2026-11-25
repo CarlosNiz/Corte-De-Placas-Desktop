@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
@@ -7,7 +8,7 @@ using CorteDePlacasDesktop.Models;
 
 namespace CorteDePlacasDesktop.Controls;
 
-/// <summary>Desenho pequeno (só leitura) do formato da chapa.</summary>
+/// <summary>Desenho pequeno (só leitura) da placa, já com furos e recortes.</summary>
 public class PreviaChapa : Control
 {
     public static readonly StyledProperty<FormatoChapa?> FormatoProperty =
@@ -32,7 +33,7 @@ public class PreviaChapa : Control
     public override void Render(DrawingContext ctx)
     {
         var formato = Formato;
-        if (formato is null || formato.Contorno.Count < 2 || formato.Limites.Comprimento <= 0 || formato.Limites.Largura <= 0)
+        if (formato is null || formato.Regiao.Count == 0 || formato.Limites.Comprimento <= 0 || formato.Limites.Largura <= 0)
             return;
 
         const double margem = 6;
@@ -46,17 +47,8 @@ public class PreviaChapa : Control
 
         var chapa = DesenhoChapa.Pincel(this, "SheetBrush", Brushes.Beige);
         var borda = DesenhoChapa.Pincel(this, "SheetBorderBrush", Brushes.Gray);
-        var perigo = DesenhoChapa.Pincel(this, "DangerBrush", Brushes.Red);
-        var perigoSuave = DesenhoChapa.Pincel(this, "DangerSoftBrush", Brushes.MistyRose);
 
-        var pontos = formato.Contorno.Select(ParaTela).ToList();
-        ctx.DrawGeometry(chapa, new Pen(borda, 2, lineJoin: PenLineJoin.Round), DesenhoChapa.Poligono(pontos));
-
-        foreach (var d in formato.Defeitos)
-        {
-            var a = ParaTela(new Ponto(d.X, d.Topo));
-            var b = ParaTela(new Ponto(d.Direita, d.Y));
-            DesenhoChapa.Defeito(ctx, new Rect(a, b), perigoSuave, perigo, 1);
-        }
+        var regiao = formato.Regiao.Select(c => (IReadOnlyList<Point>)c.Select(ParaTela).ToList()).ToList();
+        ctx.DrawGeometry(chapa, new Pen(borda, 2, lineJoin: PenLineJoin.Round), DesenhoChapa.Regiao(regiao));
     }
 }

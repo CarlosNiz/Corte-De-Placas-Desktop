@@ -1,33 +1,38 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Clipper2Lib;
 
 namespace CorteDePlacasDesktop.Models;
 
 /// <summary>
-/// Formato de uma chapa: o contorno (qualquer polígono, inclusive com bordas inclinadas)
-/// e as áreas com defeito que não podem ser usadas. Medidas em milímetros.
+/// Formato de uma chapa: um contorno (qualquer polígono, inclusive com bordas inclinadas)
+/// mais retângulos e círculos que somam ou tiram área. A placa de verdade é a
+/// <see cref="Regiao"/>: contorno + formas que somam − formas que tiram. Medidas em milímetros.
 /// Imutável: para mudar o formato, crie outro.
 /// </summary>
 public sealed class FormatoChapa
 {
-    /// <summary>Passo da busca por posição nas regiões sem canto próximo (bordas inclinadas).</summary>
+    /// <summary>Passo da busca por posição nas regiões sem canto próximo (bordas inclinadas, curvas).</summary>
     private const double PassoBusca = 50;
 
     private const double Tolerancia = 1e-6;
 
     private readonly Dictionary<(double, double, double), bool> _cacheCabe = new();
+    private readonly Dictionary<double, IReadOnlyList<IReadOnlyList<Ponto>>> _cacheAreaUtil = new();
     private string? _erro;
     private bool _validado;
 
-    public FormatoChapa(IEnumerable<Ponto> contorno, IEnumerable<Retangulo>? defeitos = null)
+    public FormatoChapa(IEnumerable<Ponto> contorno, IEnumerable<FormaChapa>? formas = null)
     {
         Contorno = contorno.ToArray();
-        Defeitos = (defeitos ?? []).ToArray();
-        Limites = Geometria.Limites(Contorno);
+        Formas = (formas ?? []).ToArray();
 
-        var areaDefeitos = Defeitos.Sum(d => AreaDaIntersecao(d, Limites));
-        Area = Math.Max(0, Math.Abs(Geometria.AreaComSinal(Contorno)) - areaDefeitos);
+        var regiao = CalcularRegiao();
+        Regiao = DeClipper(regiao);
+        Partes = regiao.Count(p => Clipper.Area(p) > 0);
+        Area = Math.Max(0, Clipper.Area(regiao));
+        Limites = Geometria.Limites(Regiao.SelectMany(p => p));
     }
 
     public static FormatoChapa RetanguloSimples(double comprimento, double largura) =>
@@ -36,21 +41,34 @@ public sealed class FormatoChapa
     /// <summary>Cantos do contorno, em ordem (horária ou anti-horária).</summary>
     public IReadOnlyList<Ponto> Contorno { get; }
 
-    public IReadOnlyList<Retangulo> Defeitos { get; }
+    /// <summary>Retângulos e círculos que somam ou tiram área.</summary>
+    public IReadOnlyList<FormaChapa> Formas { get; }
 
-    /// <summary>Menor retângulo que contém o contorno (medidas externas).</summary>
+    /// <summary>A placa de verdade: contornos externos e de furos (regra par-ímpar).</summary>
+    public IReadOnlyList<IReadOnlyList<Ponto>> Regiao { get; }
+
+    /// <summary>Em quantos pedaços separados a placa ficou (normalmente 1).</summary>
+    public int Partes { get; }
+
+    /// <summary>Menor retângulo que contém a placa (medidas externas).</summary>
     public Retangulo Limites { get; }
 
-    /// <summary>Área aproveitável em mm² (contorno menos defeitos).</summary>
+    /// <summary>Área da placa em mm².</summary>
     public double Area { get; }
 
-    /// <summary>Retângulo comum, sem recortes nem defeitos.</summary>
-    public bool EhRetanguloSimples =>
-        Defeitos.Count == 0
-        && Contorno.Count == 4
-        && Contorno.All(p => (Igual(p.X, Limites.X) || Igual(p.X, Limites.Direita))
-                             && (Igual(p.Y, Limites.Y) || Igual(p.Y, Limites.Topo)))
-        && Igual(Math.Abs(Geometria.AreaComSinal(Contorno)), Limites.Area);
+    /// <summary>Retângulo comum, sem formas.</summary>
+    public bool EhRetanguloSimples
+    {
+        get
+        {
+            if (Formas.Count != 0 || Contorno.Count != 4)
+                return false;
+            var limites = Geometria.Limites(Contorno);
+            return Contorno.All(p => (Igual(p.X, limites.X) || Igual(p.X, limites.Direita))
+                                     && (Igual(p.Y, limites.Y) || Igual(p.Y, limites.Topo)))
+                   && Igual(Math.Abs(Geometria.AreaComSinal(Contorno)), limites.Area);
+        }
+    }
 
     /// <summary>Problema no formato que impede o uso, ou null se está tudo certo.</summary>
     public string? Validar()
@@ -64,8 +82,8 @@ public sealed class FormatoChapa
     }
 
     /// <summary>
-    /// Se uma peça de comprimento × largura cabe em algum lugar da chapa sem girar,
-    /// mantendo o refilo de distância das bordas e sem pegar nenhum defeito.
+    /// Se uma peça de comprimento × largura cabe em algum lugar da placa sem girar,
+    /// mantendo o refilo de distância de todas as bordas (inclusive de furos e recortes).
     /// </summary>
     public bool Cabe(double comprimento, double largura, double refilo)
     {
@@ -87,42 +105,66 @@ public sealed class FormatoChapa
     /// </summary>
     public Ponto? ProcurarPosicao(double comprimento, double largura, double refilo)
     {
-        // A peça com o refilo em volta precisa ficar dentro do contorno.
-        var envolvente = new Retangulo(0, 0, comprimento + 2 * refilo, largura + 2 * refilo);
-        if (envolvente.Comprimento > Limites.Comprimento + Tolerancia || envolvente.Largura > Limites.Largura + Tolerancia)
+        var util = AreaUtil(refilo);
+        var limites = Geometria.Limites(util.SelectMany(p => p));
+        if (util.Count == 0 || comprimento > limites.Comprimento + Tolerancia || largura > limites.Largura + Tolerancia)
             return null;
 
-        var xs = Candidatos(
-            Contorno.Select(p => p.X),
-            Defeitos.SelectMany(d => new[] { d.Direita - refilo, d.X - refilo - comprimento }),
-            envolvente.Comprimento, Limites.X, Limites.Direita);
-        var ys = Candidatos(
-            Contorno.Select(p => p.Y),
-            Defeitos.SelectMany(d => new[] { d.Topo - refilo, d.Y - refilo - largura }),
-            envolvente.Largura, Limites.Y, Limites.Topo);
+        var vertices = util.SelectMany(p => p).ToList();
+        var xs = Candidatos(vertices.Select(p => p.X), comprimento, limites.X, limites.Direita);
+        var ys = Candidatos(vertices.Select(p => p.Y), largura, limites.Y, limites.Topo);
 
         foreach (var y in ys)
         {
             foreach (var x in xs)
             {
-                var peca = new Retangulo(x + refilo, y + refilo, comprimento, largura);
-                if (Defeitos.Any(d => d.Sobrepoe(peca)))
-                    continue;
-                if (Geometria.RetanguloDentro(Contorno, envolvente with { X = x, Y = y }))
-                    return new Ponto(peca.X, peca.Y);
+                if (Geometria.RetanguloDentroRegiao(util, new Retangulo(x, y, comprimento, largura)))
+                    return new Ponto(x, y);
             }
         }
         return null;
     }
 
-    /// <summary>Mesmo formato, deslocado para que o canto inferior esquerdo fique em (0, 0).</summary>
+    /// <summary>A placa sem a faixa do refilo em volta de todas as bordas.</summary>
+    public IReadOnlyList<IReadOnlyList<Ponto>> AreaUtil(double refilo)
+    {
+        if (refilo <= 0)
+            return Regiao;
+        if (!_cacheAreaUtil.TryGetValue(refilo, out var util))
+        {
+            // Cantos em "quina" (miter): o refilo corta cada borda em linha reta, como na serra.
+            var encolhida = Clipper.InflatePaths(ParaClipper(Regiao), -refilo, JoinType.Miter, EndType.Polygon, miterLimit: 10);
+            util = DeClipper(encolhida);
+            _cacheAreaUtil[refilo] = util;
+        }
+        return util;
+    }
+
+    /// <summary>Mesmo formato, deslocado para que o canto inferior esquerdo da placa fique em (0, 0).</summary>
     public FormatoChapa Normalizado()
     {
         double dx = Limites.X, dy = Limites.Y;
         return new FormatoChapa(
             Contorno.Select(p => new Ponto(Arredondar(p.X - dx), Arredondar(p.Y - dy))),
-            Defeitos.Select(d => new Retangulo(Arredondar(d.X - dx), Arredondar(d.Y - dy),
-                Arredondar(d.Comprimento), Arredondar(d.Largura))));
+            Formas.Select(f => f with
+            {
+                Limites = new Retangulo(Arredondar(f.Limites.X - dx), Arredondar(f.Limites.Y - dy),
+                    Arredondar(f.Limites.Comprimento), Arredondar(f.Limites.Largura)),
+            }));
+    }
+
+    private PathsD CalcularRegiao()
+    {
+        if (Contorno.Count < 3)
+            return [];
+
+        var adicionar = ParaClipper(Formas.Where(f => f.Operacao == OperacaoForma.Adicionar && TemTamanho(f)).Select(f => f.Poligono()));
+        var remover = ParaClipper(Formas.Where(f => f.Operacao == OperacaoForma.Remover && TemTamanho(f)).Select(f => f.Poligono()));
+
+        var regiao = Clipper.Union(ParaClipper([Contorno]), adicionar, FillRule.NonZero);
+        if (remover.Count > 0)
+            regiao = Clipper.Difference(regiao, remover, FillRule.NonZero);
+        return regiao;
     }
 
     private string? CalcularErro()
@@ -162,51 +204,59 @@ public sealed class FormatoChapa
             }
         }
 
-        if (Math.Abs(Geometria.AreaComSinal(Contorno)) < 1)
-            return "O contorno não tem área.";
-
-        for (var i = 0; i < Defeitos.Count; i++)
+        for (var i = 0; i < Formas.Count; i++)
         {
-            if (Defeitos[i].Comprimento <= 0 || Defeitos[i].Largura <= 0)
-                return $"O defeito {i + 1} está sem tamanho.";
+            if (!TemTamanho(Formas[i]))
+                return $"A forma {i + 1} está sem tamanho.";
         }
+
+        if (Area < 1)
+            return "A placa ficou sem área.";
 
         return null;
     }
 
     /// <summary>
-    /// Posições a testar num eixo: alinhadas aos cantos e aos defeitos (onde as peças costumam
-    /// encostar) e, entre elas, a cada <see cref="PassoBusca"/> mm para cobrir bordas inclinadas.
+    /// Posições a testar num eixo: alinhadas aos cantos da área útil (onde as peças costumam
+    /// encostar) e, entre elas, a cada <see cref="PassoBusca"/> mm para cobrir bordas inclinadas e curvas.
     /// </summary>
-    private static List<double> Candidatos(IEnumerable<double> coordenadasCantos, IEnumerable<double> extras,
-        double tamanho, double minimo, double maximo)
+    private static List<double> Candidatos(IEnumerable<double> coordenadas, double tamanho, double minimo, double maximo)
     {
         var limite = maximo - tamanho;
         var valores = new List<double>();
-        foreach (var c in coordenadasCantos)
+        foreach (var c in coordenadas)
         {
             valores.Add(c);
             valores.Add(c - tamanho);
         }
-        valores.AddRange(extras);
         for (var v = minimo; v <= limite; v += PassoBusca)
             valores.Add(v);
         valores.Add(limite);
 
         return valores
             .Where(v => v >= minimo - Tolerancia && v <= limite + Tolerancia)
-            .Select(v => Math.Clamp(v, minimo, limite))
+            .Select(v => Math.Round(Math.Clamp(v, minimo, limite), 2))
             .Distinct()
             .Order()
             .ToList();
     }
 
-    private static double AreaDaIntersecao(Retangulo a, Retangulo b)
+    private static bool TemTamanho(FormaChapa forma) => forma.Limites.Comprimento > 0 && forma.Limites.Largura > 0;
+
+    private static PathsD ParaClipper(IEnumerable<IReadOnlyList<Ponto>> poligonos)
     {
-        var comprimento = Math.Min(a.Direita, b.Direita) - Math.Max(a.X, b.X);
-        var largura = Math.Min(a.Topo, b.Topo) - Math.Max(a.Y, b.Y);
-        return comprimento > 0 && largura > 0 ? comprimento * largura : 0;
+        var caminhos = new PathsD();
+        foreach (var poligono in poligonos)
+        {
+            var caminho = new PathD(poligono.Count);
+            caminho.AddRange(poligono.Select(p => new PointD(p.X, p.Y)));
+            caminhos.Add(caminho);
+        }
+        return caminhos;
     }
+
+    private static IReadOnlyList<IReadOnlyList<Ponto>> DeClipper(PathsD caminhos) =>
+        caminhos.Select(c => (IReadOnlyList<Ponto>)c.Select(p => new Ponto(p.x, p.y)).ToArray()).ToArray();
 
     private static bool Igual(double a, double b) => Math.Abs(a - b) < 1e-3;
 

@@ -82,17 +82,43 @@ public static class Geometria
         return dentro;
     }
 
-    /// <summary>Se o retângulo inteiro está dentro do polígono (pode encostar nas bordas).</summary>
-    public static bool RetanguloDentro(IReadOnlyList<Ponto> poligono, Retangulo r)
+    /// <summary>
+    /// Se o ponto está dentro de uma região formada por vários contornos (partes e furos),
+    /// pela regra par-ímpar: dentro de um furo conta como fora.
+    /// </summary>
+    public static bool PontoDentroRegiao(IReadOnlyList<IReadOnlyList<Ponto>> regiao, Ponto p)
     {
-        // Se nenhuma borda do polígono atravessa o interior do retângulo, o interior está
-        // todo dentro ou todo fora; o centro decide qual dos dois.
-        for (var i = 0; i < poligono.Count; i++)
+        var dentro = false;
+        foreach (var contorno in regiao)
         {
-            if (SegmentoAtravessaInterior(poligono[i], poligono[(i + 1) % poligono.Count], r))
-                return false;
+            if (PontoDentro(contorno, p))
+                dentro = !dentro;
         }
-        return PontoDentro(poligono, r.Centro);
+        return dentro;
+    }
+
+    /// <summary>Se o retângulo inteiro está dentro da região (pode encostar nas bordas).</summary>
+    public static bool RetanguloDentroRegiao(IReadOnlyList<IReadOnlyList<Ponto>> regiao, Retangulo r)
+    {
+        // Se nenhuma borda da região atravessa o interior do retângulo, o interior está
+        // todo dentro ou todo fora; o centro decide qual dos dois.
+        foreach (var contorno in regiao)
+        {
+            for (var i = 0; i < contorno.Count; i++)
+            {
+                var a = contorno[i];
+                var b = contorno[(i + 1) % contorno.Count];
+                // Descarte rápido: borda longe do retângulo
+                if (Math.Max(a.X, b.X) <= r.X || Math.Min(a.X, b.X) >= r.Direita ||
+                    Math.Max(a.Y, b.Y) <= r.Y || Math.Min(a.Y, b.Y) >= r.Topo)
+                {
+                    continue;
+                }
+                if (SegmentoAtravessaInterior(a, b, r))
+                    return false;
+            }
+        }
+        return PontoDentroRegiao(regiao, r.Centro);
     }
 
     /// <summary>Se algum trecho do segmento passa por dentro do retângulo (não só pela borda).</summary>

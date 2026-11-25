@@ -13,18 +13,22 @@ namespace CorteDePlacasDesktop.ViewModels;
 
 public enum ModoEditor
 {
-    /// <summary>Arrastar cantos, criar cantos nas bordas, selecionar.</summary>
+    /// <summary>Arrastar cantos e formas, criar cantos nas bordas, selecionar.</summary>
     Ajustar,
 
     /// <summary>Desenhar um contorno novo, clicando canto a canto.</summary>
     Desenhar,
 
-    /// <summary>Arrastar um retângulo para marcar uma área com defeito.</summary>
-    Defeito,
+    /// <summary>Arrastar para criar um retângulo que tira ou soma área.</summary>
+    Retangulo,
+
+    /// <summary>Clicar no centro e arrastar para criar um círculo que tira ou soma área.</summary>
+    Circulo,
 }
 
 /// <summary>
-/// Tela onde o operador desenha o formato da chapa com o mouse: contorno e defeitos.
+/// Tela onde o operador desenha a placa com o mouse: o contorno (cantos) e retângulos
+/// e círculos que tiram ou somam área.
 /// </summary>
 public partial class EditorChapaViewModel : ViewModelBase
 {
@@ -40,14 +44,14 @@ public partial class EditorChapaViewModel : ViewModelBase
         _plano = plano;
 
         Cantos.CollectionChanged += OnColecaoChanged;
-        Defeitos.CollectionChanged += OnColecaoChanged;
+        Formas.CollectionChanged += OnColecaoChanged;
 
         _carregando = true;
         var formato = plano.Formato;
         foreach (var p in formato.Contorno)
             Cantos.Add(NovoCanto(p));
-        foreach (var d in formato.Defeitos)
-            Defeitos.Add(NovoDefeito(d));
+        foreach (var f in formato.Formas)
+            Formas.Add(NovaForma(f));
         RetanguloComprimento = (decimal)formato.Limites.Comprimento;
         RetanguloLargura = (decimal)formato.Limites.Largura;
         _carregando = false;
@@ -60,7 +64,7 @@ public partial class EditorChapaViewModel : ViewModelBase
 
     public ObservableCollection<CantoViewModel> Cantos { get; } = new();
 
-    public ObservableCollection<DefeitoViewModel> Defeitos { get; } = new();
+    public ObservableCollection<FormaViewModel> Formas { get; } = new();
 
     /// <summary>Formato atual, ou null enquanto algum campo está vazio ou o contorno não foi fechado.</summary>
     public FormatoChapa? Formato { get; private set; }
@@ -70,24 +74,47 @@ public partial class EditorChapaViewModel : ViewModelBase
     // ---- Modo ----
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(EmAjuste), nameof(EmDesenho), nameof(EmDefeito), nameof(Ajuda))]
+    [NotifyPropertyChangedFor(nameof(EmAjuste), nameof(EmDesenho), nameof(EmRetangulo), nameof(EmCirculo),
+        nameof(CriandoForma), nameof(Ajuda))]
     public partial ModoEditor Modo { get; set; } = ModoEditor.Ajustar;
 
     public bool EmAjuste => Modo == ModoEditor.Ajustar;
 
     public bool EmDesenho => Modo == ModoEditor.Desenhar;
 
-    public bool EmDefeito => Modo == ModoEditor.Defeito;
+    public bool EmRetangulo => Modo == ModoEditor.Retangulo;
 
-    public string Ajuda => Modo switch
+    public bool EmCirculo => Modo == ModoEditor.Circulo;
+
+    public bool CriandoForma => EmRetangulo || EmCirculo;
+
+    /// <summary>Se as formas novas tiram ou somam área.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NovaFormaRemove), nameof(NovaFormaAdiciona), nameof(Ajuda))]
+    public partial OperacaoForma OperacaoNovaForma { get; set; } = OperacaoForma.Remover;
+
+    public bool NovaFormaRemove => OperacaoNovaForma == OperacaoForma.Remover;
+
+    public bool NovaFormaAdiciona => OperacaoNovaForma == OperacaoForma.Adicionar;
+
+    public string Ajuda
     {
-        ModoEditor.Desenhar =>
-            "Clique para marcar cada canto da chapa. Para fechar, clique no primeiro canto. Esc cancela.",
-        ModoEditor.Defeito =>
-            "Clique e arraste sobre a chapa para marcar a área com defeito.",
-        _ =>
-            "Arraste os cantos para mudar o formato. Clique numa borda para criar um canto novo.",
-    };
+        get
+        {
+            var efeito = NovaFormaRemove ? "tirar da placa" : "somar à placa";
+            return Modo switch
+            {
+                ModoEditor.Desenhar =>
+                    "Clique para marcar cada canto da chapa. Para fechar, clique no primeiro canto. Esc cancela.",
+                ModoEditor.Retangulo =>
+                    $"Clique e arraste para desenhar um retângulo que vai {efeito}.",
+                ModoEditor.Circulo =>
+                    $"Clique no centro e arraste para o lado para desenhar um círculo que vai {efeito}.",
+                _ =>
+                    "Arraste cantos e formas para mudar a placa. Clique numa borda para criar um canto novo.",
+            };
+        }
+    }
 
     [RelayCommand]
     private void ModoAjustar()
@@ -103,36 +130,74 @@ public partial class EditorChapaViewModel : ViewModelBase
         if (EmDesenho)
             return;
         _contornoAntesDoDesenho = Cantos.Select(c => c.Ponto).ToList();
-        SelecionarCanto(null);
+        LimparSelecao();
         Modo = ModoEditor.Desenhar;
         Cantos.Clear();
     }
 
     [RelayCommand]
-    private void MarcarDefeito()
+    private void CriarRetangulo() => EntrarEmModoForma(ModoEditor.Retangulo);
+
+    [RelayCommand]
+    private void CriarCirculo() => EntrarEmModoForma(ModoEditor.Circulo);
+
+    [RelayCommand]
+    private void NovasFormasTiram() => OperacaoNovaForma = OperacaoForma.Remover;
+
+    [RelayCommand]
+    private void NovasFormasSomam() => OperacaoNovaForma = OperacaoForma.Adicionar;
+
+    private void EntrarEmModoForma(ModoEditor modo)
     {
         if (EmDesenho)
             CancelarDesenho();
-        SelecionarCanto(null);
-        Modo = ModoEditor.Defeito;
+        LimparSelecao();
+        Modo = modo;
     }
 
     // ---- Seleção ----
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(RemoverCantoSelecionadoCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RemoverSelecionadoCommand))]
     public partial CantoViewModel? CantoSelecionado { get; set; }
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RemoverSelecionadoCommand))]
+    public partial FormaViewModel? FormaSelecionada { get; set; }
 
     partial void OnCantoSelecionadoChanged(CantoViewModel? oldValue, CantoViewModel? newValue)
     {
         if (oldValue is not null)
             oldValue.Selecionado = false;
         if (newValue is not null)
+        {
             newValue.Selecionado = true;
+            FormaSelecionada = null;
+        }
+        Alterado?.Invoke();
+    }
+
+    partial void OnFormaSelecionadaChanged(FormaViewModel? oldValue, FormaViewModel? newValue)
+    {
+        if (oldValue is not null)
+            oldValue.Selecionada = false;
+        if (newValue is not null)
+        {
+            newValue.Selecionada = true;
+            CantoSelecionado = null;
+        }
         Alterado?.Invoke();
     }
 
     public void SelecionarCanto(CantoViewModel? canto) => CantoSelecionado = canto;
+
+    public void SelecionarForma(FormaViewModel? forma) => FormaSelecionada = forma;
+
+    public void LimparSelecao()
+    {
+        CantoSelecionado = null;
+        FormaSelecionada = null;
+    }
 
     // ---- Ações vindas do desenho ----
 
@@ -183,24 +248,31 @@ public partial class EditorChapaViewModel : ViewModelBase
         Atualizar();
     }
 
-    public void AdicionarDefeito(Retangulo area)
+    /// <summary>Cria a forma desenhada com o mouse (retângulo ou círculo, conforme o modo).</summary>
+    public void AdicionarForma(FormaChapa forma)
     {
-        var defeito = NovoDefeito(area);
-        Defeitos.Add(defeito);
+        var nova = NovaForma(forma);
+        Formas.Add(nova);
         Modo = ModoEditor.Ajustar;
-        _janela.MostrarToast($"Defeito {defeito.Numero} marcado.");
+        SelecionarForma(nova);
+        var efeito = forma.Operacao == OperacaoForma.Remover ? "tira da placa" : "soma à placa";
+        _janela.MostrarToast($"{nova.Titulo} criado ({efeito}).");
     }
+
+    public void MoverForma(FormaViewModel forma, FormaChapa novaPosicao) => forma.Definir(novaPosicao);
 
     // ---- Remoções ----
 
-    [RelayCommand(CanExecute = nameof(TemCantoSelecionado))]
-    private void RemoverCantoSelecionado()
+    [RelayCommand(CanExecute = nameof(TemSelecao))]
+    private void RemoverSelecionado()
     {
-        if (CantoSelecionado is not null)
+        if (FormaSelecionada is not null)
+            RemoverForma(FormaSelecionada);
+        else if (CantoSelecionado is not null)
             RemoverCanto(CantoSelecionado);
     }
 
-    private bool TemCantoSelecionado() => CantoSelecionado is not null;
+    private bool TemSelecao() => CantoSelecionado is not null || FormaSelecionada is not null;
 
     private void RemoverCanto(CantoViewModel canto)
     {
@@ -224,17 +296,20 @@ public partial class EditorChapaViewModel : ViewModelBase
         });
     }
 
-    private void RemoverDefeito(DefeitoViewModel defeito)
+    private void RemoverForma(FormaViewModel forma)
     {
-        var indice = Defeitos.IndexOf(defeito);
+        var indice = Formas.IndexOf(forma);
         if (indice < 0)
             return;
-        Defeitos.RemoveAt(indice);
+        var titulo = forma.Titulo;
+        if (forma == FormaSelecionada)
+            SelecionarForma(null);
+        Formas.RemoveAt(indice);
 
-        _janela.MostrarToast($"Defeito {indice + 1} removido.", textoAcao: "Desfazer", acao: () =>
+        _janela.MostrarToast($"{titulo} removido.", textoAcao: "Desfazer", acao: () =>
         {
-            if (!Defeitos.Contains(defeito))
-                Defeitos.Insert(Math.Min(indice, Defeitos.Count), defeito);
+            if (!Formas.Contains(forma))
+                Formas.Insert(Math.Min(indice, Formas.Count), forma);
         });
     }
 
@@ -315,7 +390,7 @@ public partial class EditorChapaViewModel : ViewModelBase
     protected override void OnPropertyChanged(PropertyChangedEventArgs e)
     {
         base.OnPropertyChanged(e);
-        if (e.PropertyName == nameof(Modo))
+        if (e.PropertyName is nameof(Modo) or nameof(OperacaoNovaForma))
             Atualizar();
     }
 
@@ -326,19 +401,19 @@ public partial class EditorChapaViewModel : ViewModelBase
         return canto;
     }
 
-    private DefeitoViewModel NovoDefeito(Retangulo r)
+    private FormaViewModel NovaForma(FormaChapa f)
     {
-        var defeito = new DefeitoViewModel(r, RemoverDefeito);
-        defeito.PropertyChanged += OnItemChanged;
-        return defeito;
+        var forma = new FormaViewModel(f, RemoverForma);
+        forma.PropertyChanged += OnItemChanged;
+        return forma;
     }
 
     private void OnColecaoChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         for (var i = 0; i < Cantos.Count; i++)
             Cantos[i].Numero = i + 1;
-        for (var i = 0; i < Defeitos.Count; i++)
-            Defeitos[i].Numero = i + 1;
+        for (var i = 0; i < Formas.Count; i++)
+            Formas[i].Numero = i + 1;
         if (!_carregando)
             _alterado = true;
         Atualizar();
@@ -346,8 +421,11 @@ public partial class EditorChapaViewModel : ViewModelBase
 
     private void OnItemChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(CantoViewModel.Numero) or nameof(CantoViewModel.Selecionado))
+        if (e.PropertyName is nameof(CantoViewModel.Numero) or nameof(CantoViewModel.Selecionado)
+            or nameof(FormaViewModel.Selecionada) or nameof(FormaViewModel.Titulo))
+        {
             return;
+        }
         if (!_carregando)
             _alterado = true;
         Atualizar();
@@ -355,9 +433,9 @@ public partial class EditorChapaViewModel : ViewModelBase
 
     private void Atualizar()
     {
-        var completos = Cantos.All(c => c.EstaCompleto) && Defeitos.All(d => d.EstaCompleto);
+        var completos = Cantos.All(c => c.EstaCompleto) && Formas.All(f => f.EstaCompleta);
         Formato = completos && !EmDesenho
-            ? new FormatoChapa(Cantos.Select(c => c.Ponto), Defeitos.Select(d => d.Area))
+            ? new FormatoChapa(Cantos.Select(c => c.Ponto), Formas.Select(f => f.Forma))
             : null;
 
         if (EmDesenho)
@@ -365,19 +443,21 @@ public partial class EditorChapaViewModel : ViewModelBase
                 ? "Marque pelo menos 3 cantos e feche o contorno."
                 : "Clique no primeiro canto para fechar o contorno.";
         else if (!completos)
-            Erro = "Preencha as medidas de todos os cantos e defeitos.";
+            Erro = "Preencha as medidas de todos os cantos e formas.";
         else
             Erro = Formato!.Validar();
 
         var partes = new List<string>
         {
             Cantos.Count == 1 ? "1 canto" : $"{Cantos.Count} cantos",
-            Defeitos.Count switch { 0 => "sem defeitos", 1 => "1 defeito", var n => $"{n} defeitos" },
+            Formas.Count switch { 0 => "sem formas", 1 => "1 forma", var n => $"{n} formas" },
         };
         if (Formato is not null && Erro is null)
         {
             partes.Add($"{Formato.Limites.Comprimento:0.#} × {Formato.Limites.Largura:0.#} mm");
             partes.Add($"{Formato.Area / 1_000_000:0.00} m²");
+            if (Formato.Partes > 1)
+                partes.Add($"{Formato.Partes} partes separadas");
         }
         Resumo = string.Join(" · ", partes);
 

@@ -83,7 +83,7 @@ public partial class MainViewModel : ViewModelBase
 
     // ---- Toasts ----
 
-    /// <summary>Avisos na tela, o mais recente primeiro.</summary>
+    /// <summary>Avisos na tela, o mais recente por último (embaixo).</summary>
     public ObservableCollection<ToastViewModel> Toasts { get; } = new();
 
     /// <summary>
@@ -99,9 +99,9 @@ public partial class MainViewModel : ViewModelBase
                 Toasts.Remove(anterior);
 
         var toast = new ToastViewModel(mensagem, tipo, textoAcao, acao, grupo, FecharToast);
-        Toasts.Insert(0, toast);
+        Toasts.Add(toast);
         while (Toasts.Count > MaximoDeToasts)
-            Toasts.RemoveAt(Toasts.Count - 1);
+            Toasts.RemoveAt(0);
 
         var duracao = acao is null ? TimeSpan.FromSeconds(4) : TimeSpan.FromSeconds(8);
         _ = FecharDepoisAsync(toast, duracao);

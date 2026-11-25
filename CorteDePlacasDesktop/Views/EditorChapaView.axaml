@@ -10,7 +10,7 @@
              Foreground="{DynamicResource TextPrimaryBrush}">
 
     <UserControl.Styles>
-        <!-- Botões de modo (Ajustar / Desenhar / Defeito) -->
+        <!-- Botões de ferramenta -->
         <Style Selector="Button.modo">
             <Setter Property="Padding" Value="16,10" />
             <Setter Property="FontSize" Value="15" />
@@ -24,6 +24,20 @@
             <Setter Property="Background" Value="{DynamicResource BrandSoftBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource BrandBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource BrandBrush}" />
+        </Style>
+        <Style Selector="Button.modo.ativo.tirar /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource DangerSoftBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+        </Style>
+        <Style Selector="Button.modo.ativo.somar /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource SuccessSoftBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+        </Style>
+        <Style Selector="Button.modo.pequeno">
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="FontSize" Value="13" />
         </Style>
 
         <!-- Campos numéricos -->
@@ -50,6 +64,24 @@
             <Setter Property="Background" Value="{DynamicResource BrandSoftBrush}" />
         </Style>
 
+        <!-- Cartão de forma: vermelho tira, verde soma -->
+        <Style Selector="Border.forma">
+            <Setter Property="Margin" Value="0,0,0,10" />
+            <Setter Property="Padding" Value="10" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.forma.tira">
+            <Setter Property="Background" Value="{DynamicResource DangerSoftBrush}" />
+        </Style>
+        <Style Selector="Border.forma.soma">
+            <Setter Property="Background" Value="{DynamicResource SuccessSoftBrush}" />
+        </Style>
+        <Style Selector="Border.forma.selecionada">
+            <Setter Property="BorderBrush" Value="{DynamicResource BrandBrush}" />
+        </Style>
+
         <Style Selector="TextBlock.validation">
             <Setter Property="FontSize" Value="13" />
             <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
@@ -73,46 +105,55 @@
         <!-- Ferramentas -->
         <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" Margin="32,0,32,14">
             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
-                <Button Classes="modo" Classes.ativo="{Binding EmAjuste}" Command="{Binding ModoAjustarCommand}">
+                <Button Classes="modo" Classes.ativo="{Binding EmAjuste}" Command="{Binding ModoAjustarCommand}"
+                        ToolTip.Tip="Arrastar cantos e formas, criar cantos nas bordas">
                     <StackPanel Orientation="Horizontal" Spacing="10">
                         <PathIcon Width="11" Height="16"
                                   Data="M0,0 L0,14 L3.6,10.6 L6,16 L8.2,15 L5.8,9.8 L11,9.8 Z" />
-                        <TextBlock Text="Ajustar cantos" />
+                        <TextBlock Text="Ajustar" />
                     </StackPanel>
                 </Button>
-                <Button Classes="modo" Classes.ativo="{Binding EmDesenho}" Command="{Binding DesenharContornoCommand}">
+                <Button Classes="modo" Classes.ativo="{Binding EmDesenho}" Command="{Binding DesenharContornoCommand}"
+                        ToolTip.Tip="Desenhar o contorno da placa do zero, canto a canto">
                     <StackPanel Orientation="Horizontal" Spacing="10">
                         <PathIcon Width="16" Height="16"
                                   Data="M0,12.5 V16 H3.5 L12.6,6.9 L9.1,3.4 Z M15.7,3.8 C16.1,3.4 16.1,2.8 15.7,2.4 L13.6,0.3 C13.2,-0.1 12.6,-0.1 12.2,0.3 L10.5,2 L14,5.5 Z" />
-                        <TextBlock Text="Desenhar novo contorno" />
+                        <TextBlock Text="Desenhar contorno" />
                     </StackPanel>
                 </Button>
-                <Button Classes="modo" Classes.ativo="{Binding EmDefeito}" Command="{Binding MarcarDefeitoCommand}">
+
+                <Border Width="1" Margin="4,6" Background="{DynamicResource SurfaceBorderBrush}" />
+
+                <Button Classes="modo" Classes.ativo="{Binding EmRetangulo}" Command="{Binding CriarRetanguloCommand}"
+                        ToolTip.Tip="Desenhar um retângulo que tira ou soma área na placa">
                     <StackPanel Orientation="Horizontal" Spacing="10">
-                        <PathIcon Width="17" Height="15"
-                                  Data="M8.5,0 L17,15 H0 Z M7.6,5 V10 H9.4 V5 Z M7.6,11.3 V13.2 H9.4 V11.3 Z" />
-                        <TextBlock Text="Marcar defeito" />
+                        <PathIcon Width="18" Height="13" Data="M0,0 H18 V13 H0 Z M2,2 V11 H16 V2 Z" />
+                        <TextBlock Text="Retângulo" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="modo" Classes.ativo="{Binding EmCirculo}" Command="{Binding CriarCirculoCommand}"
+                        ToolTip.Tip="Desenhar um círculo que tira ou soma área na placa">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <PathIcon Width="16" Height="16"
+                                  Data="M8,0 A8,8 0 1 1 8,16 A8,8 0 1 1 8,0 Z M8,2 A6,6 0 1 0 8,14 A6,6 0 1 0 8,2 Z" />
+                        <TextBlock Text="Círculo" />
                     </StackPanel>
                 </Button>
             </StackPanel>
 
-            <!-- Atalho: começar de um retângulo -->
-            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                <TextBlock Text="Retângulo" FontSize="14" FontWeight="Medium" VerticalAlignment="Center" />
-                <NumericUpDown Width="96" Value="{Binding RetanguloComprimento}" Minimum="0"
-                               ToolTip.Tip="Comprimento (mm)" />
-                <TextBlock Text="×" FontSize="15" VerticalAlignment="Center" />
-                <NumericUpDown Width="96" Value="{Binding RetanguloLargura}" Minimum="0"
-                               ToolTip.Tip="Largura (mm)" />
-                <TextBlock Text="mm" FontSize="13" VerticalAlignment="Center"
-                           Foreground="{DynamicResource TextSecondaryBrush}" />
-                <Button Classes="secondary" Padding="14,8" Command="{Binding AplicarRetanguloCommand}"
-                        Content="Aplicar" FontWeight="SemiBold"
-                        ToolTip.Tip="Troca o contorno por um retângulo com essas medidas" />
+            <!-- Ao criar forma: ela tira ou soma área? -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" IsVisible="{Binding CriandoForma}">
+                <TextBlock Text="A forma vai" FontSize="14" FontWeight="Medium" VerticalAlignment="Center" />
+                <Button Classes="modo tirar" Classes.ativo="{Binding NovaFormaRemove}"
+                        Command="{Binding NovasFormasTiramCommand}"
+                        Content="− Tirar da placa" />
+                <Button Classes="modo somar" Classes.ativo="{Binding NovaFormaAdiciona}"
+                        Command="{Binding NovasFormasSomamCommand}"
+                        Content="+ Somar à placa" />
             </StackPanel>
         </Grid>
 
-        <!-- Desenho + tabela -->
+        <!-- Desenho + painel -->
         <Grid Grid.Row="2" ColumnDefinitions="*,300" ColumnSpacing="20" Margin="32,0,32,20">
 
             <Border Grid.Column="0"
@@ -126,6 +167,22 @@
             <Border Grid.Column="1" Classes="card" Padding="16">
                 <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Spacing="20">
+
+                        <!-- Começar de um retângulo -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Classes="section-title" Text="Começar de um retângulo" />
+                            <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="8">
+                                <NumericUpDown Grid.Column="0" Value="{Binding RetanguloComprimento}" Minimum="0"
+                                               ToolTip.Tip="Comprimento (mm)" />
+                                <TextBlock Grid.Column="1" Text="×" FontSize="15" VerticalAlignment="Center" />
+                                <NumericUpDown Grid.Column="2" Value="{Binding RetanguloLargura}" Minimum="0"
+                                               ToolTip.Tip="Largura (mm)" />
+                            </Grid>
+                            <Button Classes="secondary" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                    Padding="12,8" FontWeight="SemiBold"
+                                    Command="{Binding AplicarRetanguloCommand}"
+                                    Content="Trocar contorno por retângulo" />
+                        </StackPanel>
 
                         <!-- Cantos -->
                         <StackPanel Spacing="6">
@@ -163,37 +220,52 @@
                             </ItemsControl>
                         </StackPanel>
 
-                        <!-- Defeitos -->
+                        <!-- Formas -->
                         <StackPanel Spacing="8">
-                            <TextBlock Classes="section-title" Text="Defeitos" />
+                            <TextBlock Classes="section-title" Text="Retângulos e círculos" />
                             <TextBlock Classes="hint"
-                                       IsVisible="{Binding !Defeitos.Count}"
-                                       Text="Nenhum defeito marcado. Use “Marcar defeito” e arraste sobre a chapa." />
-                            <ItemsControl ItemsSource="{Binding Defeitos}">
+                                       IsVisible="{Binding !Formas.Count}"
+                                       Text="Nenhum ainda. Use “Retângulo” ou “Círculo” para tirar ou somar área na placa." />
+                            <ItemsControl x:Name="ListaFormas" ItemsSource="{Binding Formas}">
                                 <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:DefeitoViewModel">
-                                        <Border Margin="0,0,0,10"
-                                                Padding="10"
-                                                CornerRadius="8"
-                                                Background="{DynamicResource DangerSoftBrush}">
+                                    <DataTemplate x:DataType="vm:FormaViewModel">
+                                        <Border Classes="forma"
+                                                Classes.tira="{Binding Remove}"
+                                                Classes.soma="{Binding Adiciona}"
+                                                Classes.selecionada="{Binding Selecionada}">
                                             <StackPanel Spacing="8">
                                                 <Grid ColumnDefinitions="*,Auto">
-                                                    <TextBlock VerticalAlignment="Center"
+                                                    <TextBlock Text="{Binding Titulo}"
+                                                               FontSize="14"
                                                                FontWeight="SemiBold"
-                                                               Foreground="{DynamicResource DangerBrush}">
-                                                        <Run Text="Defeito " /><Run Text="{Binding Numero}" />
-                                                    </TextBlock>
+                                                               VerticalAlignment="Center" />
                                                     <Button Grid.Column="1"
                                                             Classes="subtle"
                                                             Padding="9"
                                                             Command="{Binding RemoverCommand}"
-                                                            ToolTip.Tip="Remover defeito">
+                                                            ToolTip.Tip="Remover">
                                                         <PathIcon Width="10" Height="10"
                                                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                                                   Data="M1.4,0 L5,3.6 L8.6,0 L10,1.4 L6.4,5 L10,8.6 L8.6,10 L5,6.4 L1.4,10 L0,8.6 L3.6,5 L0,1.4 Z" />
                                                     </Button>
                                                 </Grid>
-                                                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto"
+
+                                                <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+                                                    <Button Grid.Column="0" Classes="modo pequeno tirar"
+                                                            Classes.ativo="{Binding Remove}"
+                                                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                                            Command="{Binding TirarDaPlacaCommand}"
+                                                            Content="− Tira da placa" />
+                                                    <Button Grid.Column="1" Classes="modo pequeno somar"
+                                                            Classes.ativo="{Binding Adiciona}"
+                                                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                                            Command="{Binding SomarAPlacaCommand}"
+                                                            Content="+ Soma à placa" />
+                                                </Grid>
+
+                                                <!-- Retângulo -->
+                                                <Grid IsVisible="{Binding EhRetangulo}"
+                                                      ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto"
                                                       ColumnSpacing="8" RowSpacing="2">
                                                     <TextBlock Grid.Row="0" Grid.Column="0" Classes="column-header" Text="X (mm)" />
                                                     <TextBlock Grid.Row="0" Grid.Column="1" Classes="column-header" Text="Y (mm)" />
@@ -203,6 +275,18 @@
                                                     <TextBlock Grid.Row="2" Grid.Column="1" Classes="column-header" Text="Largura" Margin="0,6,0,0" />
                                                     <NumericUpDown Grid.Row="3" Grid.Column="0" Value="{Binding Comprimento}" Minimum="0" />
                                                     <NumericUpDown Grid.Row="3" Grid.Column="1" Value="{Binding Largura}" Minimum="0" />
+                                                </Grid>
+
+                                                <!-- Círculo -->
+                                                <Grid IsVisible="{Binding EhCirculo}"
+                                                      ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto"
+                                                      ColumnSpacing="8" RowSpacing="2">
+                                                    <TextBlock Grid.Row="0" Grid.Column="0" Classes="column-header" Text="Centro X (mm)" />
+                                                    <TextBlock Grid.Row="0" Grid.Column="1" Classes="column-header" Text="Centro Y (mm)" />
+                                                    <NumericUpDown Grid.Row="1" Grid.Column="0" Value="{Binding X}" />
+                                                    <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding Y}" />
+                                                    <TextBlock Grid.Row="2" Grid.Column="0" Classes="column-header" Text="Diâmetro" Margin="0,6,0,0" />
+                                                    <NumericUpDown Grid.Row="3" Grid.Column="0" Value="{Binding Diametro}" Minimum="0" />
                                                 </Grid>
                                             </StackPanel>
                                         </Border>
