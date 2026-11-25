@@ -48,6 +48,12 @@
             <Setter Property="Minimum" Value="-100000" />
             <Setter Property="Maximum" Value="100000" />
         </Style>
+        <Style Selector="TextBlock.unit">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="0,0,10,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+        </Style>
         <Style Selector="TextBlock.column-header">
             <Setter Property="FontSize" Value="12" />
             <Setter Property="FontWeight" Value="Medium" />
@@ -171,12 +177,22 @@
                         <!-- Começar de um retângulo -->
                         <StackPanel Spacing="8">
                             <TextBlock Classes="section-title" Text="Começar de um retângulo" />
-                            <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="8">
-                                <NumericUpDown Grid.Column="0" Value="{Binding RetanguloComprimento}" Minimum="0"
-                                               ToolTip.Tip="Comprimento (mm)" />
-                                <TextBlock Grid.Column="1" Text="×" FontSize="15" VerticalAlignment="Center" />
-                                <NumericUpDown Grid.Column="2" Value="{Binding RetanguloLargura}" Minimum="0"
-                                               ToolTip.Tip="Largura (mm)" />
+                            <Grid ColumnDefinitions="*,Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="2">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="column-header" Text="Comprimento (mm)" />
+                                <TextBlock Grid.Row="0" Grid.Column="2" Classes="column-header" Text="Largura (mm)" />
+                                <NumericUpDown Grid.Row="1" Grid.Column="0" Value="{Binding RetanguloComprimento}" Minimum="0"
+                                               ToolTip.Tip="Comprimento (mm)">
+                                    <NumericUpDown.InnerRightContent>
+                                        <TextBlock Classes="unit" Text="mm" />
+                                    </NumericUpDown.InnerRightContent>
+                                </NumericUpDown>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="×" FontSize="15" VerticalAlignment="Center" />
+                                <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding RetanguloLargura}" Minimum="0"
+                                               ToolTip.Tip="Largura (mm)">
+                                    <NumericUpDown.InnerRightContent>
+                                        <TextBlock Classes="unit" Text="mm" />
+                                    </NumericUpDown.InnerRightContent>
+                                </NumericUpDown>
                             </Grid>
                             <Button Classes="secondary" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                                     Padding="12,8" FontWeight="SemiBold"
@@ -271,8 +287,8 @@
                                                     <TextBlock Grid.Row="0" Grid.Column="1" Classes="column-header" Text="Y (mm)" />
                                                     <NumericUpDown Grid.Row="1" Grid.Column="0" Value="{Binding X}" />
                                                     <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding Y}" />
-                                                    <TextBlock Grid.Row="2" Grid.Column="0" Classes="column-header" Text="Comprimento" Margin="0,6,0,0" />
-                                                    <TextBlock Grid.Row="2" Grid.Column="1" Classes="column-header" Text="Largura" Margin="0,6,0,0" />
+                                                    <TextBlock Grid.Row="2" Grid.Column="0" Classes="column-header" Text="Comprimento (mm)" Margin="0,6,0,0" />
+                                                    <TextBlock Grid.Row="2" Grid.Column="1" Classes="column-header" Text="Largura (mm)" Margin="0,6,0,0" />
                                                     <NumericUpDown Grid.Row="3" Grid.Column="0" Value="{Binding Comprimento}" Minimum="0" />
                                                     <NumericUpDown Grid.Row="3" Grid.Column="1" Value="{Binding Largura}" Minimum="0" />
                                                 </Grid>
@@ -285,7 +301,7 @@
                                                     <TextBlock Grid.Row="0" Grid.Column="1" Classes="column-header" Text="Centro Y (mm)" />
                                                     <NumericUpDown Grid.Row="1" Grid.Column="0" Value="{Binding X}" />
                                                     <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding Y}" />
-                                                    <TextBlock Grid.Row="2" Grid.Column="0" Classes="column-header" Text="Diâmetro" Margin="0,6,0,0" />
+                                                    <TextBlock Grid.Row="2" Grid.Column="0" Classes="column-header" Text="Diâmetro (mm)" Margin="0,6,0,0" />
                                                     <NumericUpDown Grid.Row="3" Grid.Column="0" Value="{Binding Diametro}" Minimum="0" />
                                                 </Grid>
                                             </StackPanel>

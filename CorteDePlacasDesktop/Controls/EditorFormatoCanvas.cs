@@ -779,7 +779,7 @@ public class EditorFormatoCanvas : Control
         ctx.DrawLine(pen, new Point(b.X - tx, b.Y - ty), new Point(b.X + tx, b.Y + ty));
 
         var meio = new Point((a.X + b.X) / 2, (a.Y + b.Y) / 2);
-        DesenhoFormato.Etiqueta(ctx, $"{valor:0.#}", meio, cores.Fundo, cores.Cota, cores.Cota, 13);
+        DesenhoFormato.Etiqueta(ctx, $"{valor:0.#} mm", meio, cores.Fundo, cores.Cota, cores.Cota, 13);
     }
 
     private void DesenharGrade(DrawingContext ctx, Cores cores)
@@ -857,8 +857,8 @@ public class EditorFormatoCanvas : Control
 
         // Medida no meio da forma, quando cabe
         var medida = forma.Tipo == TipoForma.Circulo
-            ? $"Ø {forma.Diametro:0.#}"
-            : $"{forma.Limites.Comprimento:0.#} × {forma.Limites.Largura:0.#}";
+            ? $"Ø {forma.Diametro:0.#} mm"
+            : $"{forma.Limites.Comprimento:0.#} × {forma.Limites.Largura:0.#} mm";
         var rotulo = sinal is null ? medida : $"{sinal}{numero}  {medida}";
         var ft = DesenhoFormato.Texto(rotulo, 12, cor, forte: true);
         if (ft.Width + 16 < tela.Width && ft.Height + 8 < tela.Height)
@@ -881,13 +881,17 @@ public class EditorFormatoCanvas : Control
         {
             var a = pontos[i];
             var b = pontos[(i + 1) % pontos.Count];
-            if (Distancia(a, b) < 44)
+            var medida = Geometria.Distancia(cantos[i].Ponto, cantos[(i + 1) % cantos.Count].Ponto);
+            var texto = $"{medida:0.#} mm";
+
+            // Só escreve se a etiqueta couber ao longo da borda (bordas inclinadas têm mais espaço na diagonal)
+            var larguraTexto = DesenhoFormato.Texto(texto, 12, cores.Texto, forte: true).Width;
+            if (Distancia(a, b) < Math.Max(44, larguraTexto * 0.8))
                 continue;
 
             var normal = NormalParaFora(poligonoTela, a, b);
             var meio = new Point((a.X + b.X) / 2 + normal.X * 16, (a.Y + b.Y) / 2 + normal.Y * 16);
-            var medida = Geometria.Distancia(cantos[i].Ponto, cantos[(i + 1) % cantos.Count].Ponto);
-            DesenhoFormato.Etiqueta(ctx, $"{medida:0.#}", meio, cores.Fundo, cores.GradeForte, cores.Texto);
+            DesenhoFormato.Etiqueta(ctx, texto, meio, cores.Fundo, cores.GradeForte, cores.Texto);
         }
     }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace CorteDePlacasDesktop.Models;
 
@@ -152,6 +153,108 @@ public static class Geometria
         }
         return t1 - t0 > Tolerancia;
     }
+
+    /// <summary>
+    /// Divide em retângulos a parte de <paramref name="limites"/> que fica FORA da região (o que não
+    /// pode ser usado). Conservador: em bordas inclinadas ou curvas, a parte de fora fica um pouco
+    /// maior que a real, nunca menor. Faixas verticais vizinhas iguais são juntadas.
+    /// </summary>
+    public static List<Retangulo> RetangulosFora(IReadOnlyList<IReadOnlyList<Ponto>> regiao, Retangulo limites)
+    {
+        const double eps = 1e-6;
+        var xs = regiao.SelectMany(c => c.Select(p => p.X))
+            .Append(limites.X).Append(limites.Direita)
+            .Where(x => x >= limites.X - eps && x <= limites.Direita + eps)
+            .Select(x => Math.Round(x, 6))
+            .Distinct()
+            .Order()
+            .ToList();
+
+        var resultado = new List<Retangulo>();
+        List<(double Y0, double Y1)>? anteriores = null;
+        var inicioDaFaixa = 0.0;
+        var fimDaFaixa = 0.0;
+
+        for (var i = 0; i + 1 < xs.Count; i++)
+        {
+            double x0 = xs[i], x1 = xs[i + 1];
+            if (x1 - x0 < eps)
+                continue;
+
+            // Partes de dentro nesta faixa (valem para a faixa inteira) e, por complemento, as de fora.
+            var dentro = IntervalosDentro(regiao, x0, x1);
+            var fora = new List<(double, double)>();
+            var y = limites.Y;
+            foreach (var (a, b) in dentro)
+            {
+                if (a - y > eps)
+                    fora.Add((y, a));
+                y = Math.Max(y, b);
+            }
+            if (limites.Topo - y > eps)
+                fora.Add((y, limites.Topo));
+
+            if (anteriores is not null && Math.Abs(x0 - fimDaFaixa) < eps && MesmosIntervalos(anteriores, fora))
+            {
+                fimDaFaixa = x1;
+                continue;
+            }
+
+            Fechar();
+            anteriores = fora;
+            inicioDaFaixa = x0;
+            fimDaFaixa = x1;
+        }
+        Fechar();
+        return resultado;
+
+        void Fechar()
+        {
+            if (anteriores is null)
+                return;
+            foreach (var (a, b) in anteriores)
+                resultado.Add(new Retangulo(inicioDaFaixa, a, fimDaFaixa - inicioDaFaixa, b - a));
+        }
+    }
+
+    /// <summary>
+    /// Intervalos em Y que ficam dentro da região em TODA a faixa x0..x1 (não há cantos dentro da faixa,
+    /// então cada borda é uma reta; basta olhar as duas pontas).
+    /// </summary>
+    private static List<(double, double)> IntervalosDentro(IReadOnlyList<IReadOnlyList<Ponto>> regiao, double x0, double x1)
+    {
+        var meio = (x0 + x1) / 2;
+        var cruzamentos = new List<(double YMeio, double Y0, double Y1)>();
+        foreach (var contorno in regiao)
+        {
+            for (var i = 0; i < contorno.Count; i++)
+            {
+                var a = contorno[i];
+                var b = contorno[(i + 1) % contorno.Count];
+                if ((a.X < meio) == (b.X < meio))
+                    continue;
+                double YEm(double x) => a.Y + (x - a.X) * (b.Y - a.Y) / (b.X - a.X);
+                cruzamentos.Add((YEm(meio), YEm(x0), YEm(x1)));
+            }
+        }
+        cruzamentos.Sort((p, q) => p.YMeio.CompareTo(q.YMeio));
+
+        var dentro = new List<(double, double)>();
+        for (var i = 0; i + 1 < cruzamentos.Count; i += 2)
+        {
+            var baixo = cruzamentos[i];
+            var cima = cruzamentos[i + 1];
+            var y0 = Math.Max(baixo.Y0, baixo.Y1);
+            var y1 = Math.Min(cima.Y0, cima.Y1);
+            if (y1 > y0)
+                dentro.Add((y0, y1));
+        }
+        return dentro;
+    }
+
+    private static bool MesmosIntervalos(List<(double, double)> a, List<(double, double)> b) =>
+        a.Count == b.Count && a.Zip(b).All(p => Math.Abs(p.First.Item1 - p.Second.Item1) < 1e-6
+                                                && Math.Abs(p.First.Item2 - p.Second.Item2) < 1e-6);
 
     /// <summary>Se os segmentos ab e cd se tocam ou se cruzam.</summary>
     public static bool SegmentosSeTocam(Ponto a, Ponto b, Ponto c, Ponto d)

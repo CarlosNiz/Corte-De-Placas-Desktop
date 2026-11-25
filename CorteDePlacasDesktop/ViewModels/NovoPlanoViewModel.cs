@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CorteDePlacasDesktop.Models;
@@ -33,7 +34,7 @@ public partial class NovoPlanoViewModel : ViewModelBase
     /// <summary>Formato da chapa: um retângulo ou um contorno desenhado, com retângulos e círculos que tiram ou somam área.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(EhFormatoPersonalizado), nameof(DescricaoFormato), nameof(MedidasFormato))]
-    public partial FormatoChapa Formato { get; set; } = FormatoChapa.RetanguloSimples(2750, 1850);
+    public partial FormatoChapa Formato { get; set; } = FormatoChapa.RetanguloSimples(1000, 1000);
 
     public bool EhFormatoPersonalizado => !Formato.EhRetanguloSimples;
 
@@ -58,10 +59,10 @@ public partial class NovoPlanoViewModel : ViewModelBase
 
     /// <summary>Comprimento da chapa retangular (quando a chapa é desenhada, mostra a medida externa).</summary>
     [ObservableProperty]
-    public partial decimal? ChapaComprimento { get; set; } = 2750;
+    public partial decimal? ChapaComprimento { get; set; } = 1000;
 
     [ObservableProperty]
-    public partial decimal? ChapaLargura { get; set; } = 1850;
+    public partial decimal? ChapaLargura { get; set; } = 1000;
 
     /// <summary>Usado pelo editor ao concluir o desenho.</summary>
     public void DefinirFormato(FormatoChapa formato)
@@ -116,13 +117,41 @@ public partial class NovoPlanoViewModel : ViewModelBase
 
     private string MedidasDoRetangulo() => $"{Formato.Limites.Comprimento:0.#} × {Formato.Limites.Largura:0.#} mm";
 
-    /// <summary>Largura do corte da serra (kerf), perdida a cada corte.</summary>
+    /// <summary>Largura do corte (da serra ou da fresa), perdida a cada corte.</summary>
     [ObservableProperty]
     public partial decimal? EspessuraSerra { get; set; } = 3;
 
-    /// <summary>Margem descartada em cada borda da chapa.</summary>
+    // ---- Tipo de corte ----
+
+    /// <summary>Como a máquina corta: serra (de ponta a ponta) ou CNC (qualquer posição).</summary>
     [ObservableProperty]
-    public partial decimal? Refilo { get; set; } = 10;
+    [NotifyPropertyChangedFor(nameof(EhSerra), nameof(EhCnc), nameof(RotuloEspessura), nameof(DicaEspessura),
+        nameof(DescricaoTipoCorte))]
+    public partial TipoCorte TipoCorte { get; set; } = TipoCorte.Serra;
+
+    public bool EhSerra => TipoCorte == TipoCorte.Serra;
+
+    public bool EhCnc => TipoCorte == TipoCorte.Cnc;
+
+    public string RotuloEspessura => EhSerra ? "Espessura da serra" : "Diâmetro da fresa";
+
+    public string DicaEspessura => EhSerra
+        ? "Material perdido em cada corte (a largura do disco da serra)."
+        : "Material perdido em volta de cada peça (o diâmetro da fresa da CNC).";
+
+    public string DescricaoTipoCorte => EhSerra
+        ? "Cortes retos de ponta a ponta."
+        : "Peças em qualquer posição da chapa.";
+
+    [RelayCommand]
+    private void UsarSerra() => TipoCorte = TipoCorte.Serra;
+
+    [RelayCommand]
+    private void UsarCnc() => TipoCorte = TipoCorte.Cnc;
+
+    /// <summary>Quanto aparar de cada borda da chapa (para deixá-la reta e limpa). 0 = não aparar.</summary>
+    [ObservableProperty]
+    public partial decimal? Refilo { get; set; } = 0;
 
     // ---- Peças ----
 
@@ -144,6 +173,10 @@ public partial class NovoPlanoViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CalcularCommand))]
     public partial bool PodeCalcular { get; set; }
+
+    /// <summary>Enquanto o cálculo roda (o botão mostra "Calculando…").</summary>
+    [ObservableProperty]
+    public partial bool Calculando { get; set; }
 
     private PecaViewModel NovaPeca() => new(RemoverPeca, DesenharPeca);
 
@@ -190,10 +223,40 @@ public partial class NovoPlanoViewModel : ViewModelBase
         _janela.MostrarToast($"{nome} restaurada.");
     }
 
-    // O cálculo do plano de corte será implementado na próxima etapa.
+    /// <summary>Calcula o plano (fora da tela, para não travar) e abre o resultado.</summary>
     [RelayCommand(CanExecute = nameof(PodeCalcular))]
-    private void Calcular()
+    private async Task CalcularAsync()
     {
+        var pecas = Pecas
+            .Where(p => !p.EstaVazia && p.EstaCompleta)
+            .Select(p => new PecaPedida(
+                p.Numero,
+                string.IsNullOrWhiteSpace(p.Descricao) ? $"Peça {p.Numero}" : p.Descricao.Trim(),
+                (double)p.Comprimento!.Value,
+                (double)p.Largura!.Value,
+                (int)p.Quantidade!.Value,
+                p.Formato))
+            .ToList();
+        var chapa = Formato;
+        var refilo = (double)(Refilo ?? 0);
+        var espessura = (double)(EspessuraSerra ?? 0);
+        var tipo = TipoCorte;
+
+        Calculando = true;
+        try
+        {
+            var resultado = await Task.Run(() => CalculadoraDePlano.Calcular(chapa, refilo, espessura, tipo, pecas));
+            _janela.Mostrar(new ResultadoPlanoViewModel(_janela, this, resultado));
+            var chapas = resultado.Chapas.Count == 1 ? "1 chapa" : $"{resultado.Chapas.Count} chapas";
+            if (resultado.NaoCouberam.Count == 0)
+                _janela.MostrarToast($"Plano calculado: {chapas}.");
+            else
+                _janela.MostrarToast($"Plano calculado ({chapas}), mas algumas peças não couberam.", TipoToast.Erro);
+        }
+        finally
+        {
+            Calculando = false;
+        }
     }
 
     protected override void OnPropertyChanged(PropertyChangedEventArgs e)
@@ -248,11 +311,11 @@ public partial class NovoPlanoViewModel : ViewModelBase
         else if (EspessuraSerra is null)
             erroChapa = "Informe a espessura da serra.";
         else if (Refilo is null)
-            erroChapa = "Informe o refilo.";
+            erroChapa = "Informe quanto aparar das bordas (0 para não aparar).";
         else if (Formato.Validar() is { } erroFormato)
             erroChapa = $"Formato da chapa: {erroFormato}";
         else if (utilComprimento <= 0 || utilLargura <= 0)
-            erroChapa = "O refilo é maior que a chapa.";
+            erroChapa = "A medida para aparar as bordas é maior que a chapa.";
 
         var incompletas = 0;
         var naoCabem = 0;
@@ -286,7 +349,7 @@ public partial class NovoPlanoViewModel : ViewModelBase
             {
                 naoCabem++;
                 peca.Aviso = EhFormatoPersonalizado
-                    ? "Não cabe em nenhuma parte da chapa, nem girando (descontando o refilo)."
+                    ? "Não cabe em nenhuma parte da chapa, nem girando (descontando as bordas aparadas)."
                     : $"Não cabe na área útil da chapa ({utilComprimento:0.#} × {utilLargura:0.#} mm), nem girando.";
             }
         }

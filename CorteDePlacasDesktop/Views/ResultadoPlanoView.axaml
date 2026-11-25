@@ -1,0 +1,185 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CorteDePlacasDesktop.ViewModels"
+             xmlns:controls="using:CorteDePlacasDesktop.Controls"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="1180" d:DesignHeight="660"
+             x:Class="CorteDePlacasDesktop.Views.ResultadoPlanoView"
+             x:DataType="vm:ResultadoPlanoViewModel"
+             Foreground="{DynamicResource TextPrimaryBrush}">
+
+    <UserControl.Styles>
+        <!-- Abas das chapas -->
+        <Style Selector="Button.aba">
+            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SurfaceBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="MinWidth" Value="130" />
+        </Style>
+        <Style Selector="Button.aba.ativa /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BrandSoftBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BrandBrush}" />
+        </Style>
+        <Style Selector="Button.aba.ativa TextBlock.aba-titulo">
+            <Setter Property="Foreground" Value="{DynamicResource BrandBrush}" />
+        </Style>
+
+        <!-- Passos (cortes ou peças) -->
+        <Style Selector="Button.passo">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="8,8" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.passo.selecionado /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BrandSoftBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BrandBrush}" />
+        </Style>
+        <Style Selector="Border.numero-passo">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="CornerRadius" Value="15" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+            <Setter Property="Background" Value="{DynamicResource MeasureBrush}" />
+        </Style>
+        <Style Selector="Border.numero-passo.preparo">
+            <Setter Property="Background" Value="{DynamicResource TextSecondaryBrush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*">
+
+        <!-- Cabeçalho -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="32,20,32,14">
+            <StackPanel Spacing="2" VerticalAlignment="Center">
+                <TextBlock Text="Plano de corte" FontSize="24" FontWeight="Bold" />
+                <TextBlock Text="{Binding Resumo}" FontSize="15" Foreground="{DynamicResource TextSecondaryBrush}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                <Button Classes="secondary large" Command="{Binding VoltarParaPlanoCommand}"
+                        ToolTip.Tip="Voltar para a chapa e as peças, para mudar alguma coisa">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <PathIcon Width="8" Height="13" Data="M7,1.4 L5.6,0 L0,5.5 L5.6,11 L7,9.6 L2.8,5.5 Z" />
+                        <TextBlock Text="Voltar e editar" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="accent large" Command="{Binding ImprimirCommand}"
+                        ToolTip.Tip="Gera um PDF com o plano e abre para imprimir">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <!-- impressora -->
+                        <PathIcon Width="18" Height="16"
+                                  Data="M4,0 H14 V4 H4 Z M1,5 H17 C17.6,5 18,5.4 18,6 V12 H14 V16 H4 V12 H0 V6 C0,5.4 0.4,5 1,5 Z M6,10 V14 H12 V10 Z M14.5,7 A1,1 0 1 0 14.5,9 A1,1 0 1 0 14.5,7 Z" />
+                        <TextBlock Text="Imprimir" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- Peças que não couberam -->
+        <Border Grid.Row="1"
+                IsVisible="{Binding TemPecasDeFora}"
+                Margin="32,0,32,12"
+                Padding="14,10"
+                CornerRadius="8"
+                Background="{DynamicResource DangerSoftBrush}"
+                BorderBrush="{DynamicResource DangerBrush}"
+                BorderThickness="1.5">
+            <TextBlock Text="{Binding PecasDeFora}"
+                       FontSize="15"
+                       FontWeight="SemiBold"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource DangerBrush}" />
+        </Border>
+
+        <!-- Abas das chapas -->
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" Margin="32,0,32,12">
+            <Button Grid.Column="0" Classes="secondary" Padding="12,10"
+                    IsVisible="{Binding TemVariasChapas}"
+                    Command="{Binding ChapaAnteriorCommand}" ToolTip.Tip="Chapa anterior">
+                <PathIcon Width="8" Height="13" Data="M7,1.4 L5.6,0 L0,5.5 L5.6,11 L7,9.6 L2.8,5.5 Z" />
+            </Button>
+            <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                <ItemsControl ItemsSource="{Binding Chapas}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="8" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ChapaResultadoViewModel">
+                            <Button Classes="aba" Classes.ativa="{Binding Selecionada}" Command="{Binding SelecionarCommand}">
+                                <StackPanel Spacing="1">
+                                    <TextBlock Classes="aba-titulo" Text="{Binding Titulo}" FontSize="16" FontWeight="Bold" />
+                                    <TextBlock Text="{Binding Detalhe}" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                </StackPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+            <Button Grid.Column="2" Classes="secondary" Padding="12,10"
+                    IsVisible="{Binding TemVariasChapas}"
+                    Command="{Binding ProximaChapaCommand}" ToolTip.Tip="Próxima chapa">
+                <PathIcon Width="8" Height="13" Data="M0,1.4 L1.4,0 L7,5.5 L1.4,11 L0,9.6 L4.2,5.5 Z" />
+            </Button>
+        </Grid>
+
+        <!-- Desenho + passos -->
+        <Grid Grid.Row="3" ColumnDefinitions="*,360" ColumnSpacing="20" Margin="32,0,32,24">
+
+            <Border Grid.Column="0" Classes="card" Padding="12">
+                <Grid RowDefinitions="Auto,*,Auto">
+                    <TextBlock Text="{Binding TituloDaChapa}" FontSize="15" FontWeight="SemiBold" Margin="8,4,8,0" />
+                    <controls:DesenhoPlano Grid.Row="1"
+                                           Resultado="{Binding Resultado}"
+                                           Chapa="{Binding ChapaAtual}"
+                                           CorteDestacado="{Binding CorteDestacado}"
+                                           PecaDestacada="{Binding PecaDestacada}" />
+                    <TextBlock Grid.Row="2" Classes="hint" Text="{Binding Legenda}" Margin="8,0,8,2" />
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="1" Classes="card" Padding="16">
+                <Grid RowDefinitions="Auto,Auto,*">
+                    <TextBlock Classes="section-title" Text="{Binding TituloDaLista}" FontSize="18" />
+                    <TextBlock Grid.Row="1" Classes="hint" Text="{Binding DicaDaLista}" Margin="0,2,0,10" />
+                    <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding Passos}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:PassoViewModel">
+                                    <Button Classes="passo" Classes.selecionado="{Binding Selecionado}"
+                                            Command="{Binding SelecionarCommand}">
+                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                            <Border Classes="numero-passo" Classes.preparo="{Binding EhPreparo}">
+                                                <TextBlock Text="{Binding Ordem}"
+                                                           FontWeight="Bold"
+                                                           FontSize="14"
+                                                           Foreground="White"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center" />
+                                            </Border>
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding Texto}"
+                                                       FontSize="15"
+                                                       LineHeight="21"
+                                                       TextWrapping="Wrap"
+                                                       VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+
+</UserControl>
