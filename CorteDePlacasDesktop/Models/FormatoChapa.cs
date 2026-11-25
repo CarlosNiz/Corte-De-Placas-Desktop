@@ -20,6 +20,7 @@ public sealed class FormatoChapa
 
     private readonly Dictionary<(double, double, double), bool> _cacheCabe = new();
     private readonly Dictionary<double, IReadOnlyList<IReadOnlyList<Ponto>>> _cacheAreaUtil = new();
+    private readonly Lazy<PathsD> _regiaoClipper;
     private string? _erro;
     private bool _validado;
 
@@ -33,6 +34,7 @@ public sealed class FormatoChapa
         Partes = regiao.Count(p => Clipper.Area(p) > 0);
         Area = Math.Max(0, Clipper.Area(regiao));
         Limites = Geometria.Limites(Regiao.SelectMany(p => p));
+        _regiaoClipper = new Lazy<PathsD>(() => ParaClipper(Regiao));
     }
 
     public static FormatoChapa RetanguloSimples(double comprimento, double largura) =>
@@ -91,11 +93,14 @@ public sealed class FormatoChapa
             return false;
 
         var chave = (comprimento, largura, refilo);
-        if (!_cacheCabe.TryGetValue(chave, out var cabe))
+        lock (_cacheCabe)
         {
-            cabe = Validar() is null && ProcurarPosicao(comprimento, largura, refilo) is not null;
-            _cacheCabe[chave] = cabe;
+            if (_cacheCabe.TryGetValue(chave, out var guardado))
+                return guardado;
         }
+        var cabe = Validar() is null && ProcurarPosicao(comprimento, largura, refilo) is not null;
+        lock (_cacheCabe)
+            _cacheCabe[chave] = cabe;
         return cabe;
     }
 
@@ -130,14 +135,33 @@ public sealed class FormatoChapa
     {
         if (refilo <= 0)
             return Regiao;
-        if (!_cacheAreaUtil.TryGetValue(refilo, out var util))
+        lock (_cacheAreaUtil)
         {
-            // Cantos em "quina" (miter): o refilo corta cada borda em linha reta, como na serra.
-            var encolhida = Clipper.InflatePaths(ParaClipper(Regiao), -refilo, JoinType.Miter, EndType.Polygon, miterLimit: 10);
-            util = DeClipper(encolhida);
-            _cacheAreaUtil[refilo] = util;
+            if (!_cacheAreaUtil.TryGetValue(refilo, out var util))
+            {
+                // Cantos em "quina" (miter): o refilo corta cada borda em linha reta, como na serra.
+                var encolhida = Clipper.InflatePaths(ParaClipper(Regiao), -refilo, JoinType.Miter, EndType.Polygon, miterLimit: 10);
+                util = DeClipper(encolhida);
+                _cacheAreaUtil[refilo] = util;
+            }
+            return util;
         }
-        return util;
+    }
+
+    /// <summary>
+    /// Se dentro do retângulo há alguma parte da placa (mais que 1 mm²). Serve para saber se um corte
+    /// separa material de verdade ou só passaria pelo ar (fora da placa ou dentro de um furo).
+    /// </summary>
+    public bool TemMaterial(Retangulo r)
+    {
+        if (r.Comprimento <= 0 || r.Largura <= 0)
+            return false;
+        var retangulo = new PathsD
+        {
+            new PathD { new(r.X, r.Y), new(r.Direita, r.Y), new(r.Direita, r.Topo), new(r.X, r.Topo) },
+        };
+        var dentro = Clipper.Intersect(_regiaoClipper.Value, retangulo, FillRule.EvenOdd);
+        return Math.Abs(Clipper.Area(dentro)) > 1.0;
     }
 
     /// <summary>Mesmo formato, deslocado para que o canto inferior esquerdo da placa fique em (0, 0).</summary>

@@ -101,6 +101,29 @@ public class DesenhoPlano : Control
         var larguraTexto = DesenhoFormato.Texto(textoAltura, 12, cores.TextoFraco, forte: true).Width;
         DesenhoFormato.Etiqueta(ctx, textoAltura, new Point(esquerda.X - larguraTexto / 2 - 14, esquerda.Y), cores.Fundo, cores.BordaChapa, cores.TextoFraco, 12);
 
+        // Maior sobra: contorno tracejado e a medida (para ver na hora se outra peça caberia ali)
+        if (chapa.Sobra is { } sobra && chapa.TextoSobra is { } textoSobra)
+        {
+            var area = R(sobra).Deflate(3);
+            if (area.Width > 0 && area.Height > 0)
+            {
+                ctx.DrawRectangle(null, new Pen(cores.TextoFraco, 1, new DashStyle([6, 4], 0)), area);
+                var linha = DesenhoFormato.Texto(textoSobra, 12, cores.TextoFraco, forte: true);
+                var titulo = DesenhoFormato.Texto("Sobra", 12, cores.TextoFraco, forte: true);
+                var medidas = DesenhoFormato.Texto(textoSobra["Sobra ".Length..], 12, cores.TextoFraco, forte: true);
+                if (linha.Width + 12 < area.Width && linha.Height + 6 < area.Height)
+                {
+                    ctx.DrawText(linha, new Point(area.Center.X - linha.Width / 2, area.Center.Y - linha.Height / 2));
+                }
+                else if (medidas.Width + 8 < area.Width && titulo.Height + medidas.Height + 6 < area.Height)
+                {
+                    var y = area.Center.Y - (titulo.Height + medidas.Height) / 2;
+                    ctx.DrawText(titulo, new Point(area.Center.X - titulo.Width / 2, y));
+                    ctx.DrawText(medidas, new Point(area.Center.X - medidas.Width / 2, y + titulo.Height));
+                }
+            }
+        }
+
         // Peças
         foreach (var peca in chapa.Pecas)
             DesenharPeca(ctx, cores, peca, R(peca.Area), peca == PecaDestacada, T);

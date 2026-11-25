@@ -117,37 +117,17 @@ public partial class NovoPlanoViewModel : ViewModelBase
 
     private string MedidasDoRetangulo() => $"{Formato.Limites.Comprimento:0.#} × {Formato.Limites.Largura:0.#} mm";
 
-    /// <summary>Largura do corte (da serra ou da fresa), perdida a cada corte.</summary>
+    /// <summary>
+    /// Largura do corte (disco da serra ou fresa da CNC), perdida a cada corte. Começa em 0 (as peças podem
+    /// encostar); o operador digita a medida da ferramenta quando quiser descontar o corte.
+    /// O app testa sempre as duas arrumações (cortes retos de ponta a ponta e encaixe livre) e fica com a melhor.
+    /// </summary>
     [ObservableProperty]
-    public partial decimal? EspessuraSerra { get; set; } = 3;
+    public partial decimal? EspessuraSerra { get; set; } = 0;
 
-    // ---- Tipo de corte ----
-
-    /// <summary>Como a máquina corta: serra (de ponta a ponta) ou CNC (qualquer posição).</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(EhSerra), nameof(EhCnc), nameof(RotuloEspessura), nameof(DicaEspessura),
-        nameof(DescricaoTipoCorte))]
-    public partial TipoCorte TipoCorte { get; set; } = TipoCorte.Serra;
-
-    public bool EhSerra => TipoCorte == TipoCorte.Serra;
-
-    public bool EhCnc => TipoCorte == TipoCorte.Cnc;
-
-    public string RotuloEspessura => EhSerra ? "Espessura da serra" : "Diâmetro da fresa";
-
-    public string DicaEspessura => EhSerra
-        ? "Material perdido em cada corte (a largura do disco da serra)."
-        : "Material perdido em volta de cada peça (o diâmetro da fresa da CNC).";
-
-    public string DescricaoTipoCorte => EhSerra
-        ? "Cortes retos de ponta a ponta."
-        : "Peças em qualquer posição da chapa.";
-
-    [RelayCommand]
-    private void UsarSerra() => TipoCorte = TipoCorte.Serra;
-
-    [RelayCommand]
-    private void UsarCnc() => TipoCorte = TipoCorte.Cnc;
+    public string DicaEspessura =>
+        "Material perdido em cada corte: a largura do disco da serra ou o diâmetro da fresa. " +
+        "Com 0, as peças podem encostar umas nas outras.";
 
     /// <summary>Quanto aparar de cada borda da chapa (para deixá-la reta e limpa). 0 = não aparar.</summary>
     [ObservableProperty]
@@ -240,16 +220,15 @@ public partial class NovoPlanoViewModel : ViewModelBase
         var chapa = Formato;
         var refilo = (double)(Refilo ?? 0);
         var espessura = (double)(EspessuraSerra ?? 0);
-        var tipo = TipoCorte;
 
         Calculando = true;
         try
         {
-            var resultado = await Task.Run(() => CalculadoraDePlano.Calcular(chapa, refilo, espessura, tipo, pecas));
+            var resultado = await Task.Run(() => CalculadoraDePlano.Calcular(chapa, refilo, espessura, pecas));
             _janela.Mostrar(new ResultadoPlanoViewModel(_janela, this, resultado));
             var chapas = resultado.Chapas.Count == 1 ? "1 chapa" : $"{resultado.Chapas.Count} chapas";
             if (resultado.NaoCouberam.Count == 0)
-                _janela.MostrarToast($"Plano calculado: {chapas}.");
+                _janela.MostrarToast(resultado.Chapas.Count == 1 ? "Plano calculado: tudo cabe em 1 chapa." : $"Plano calculado: vai precisar de {chapas}.");
             else
                 _janela.MostrarToast($"Plano calculado ({chapas}), mas algumas peças não couberam.", TipoToast.Erro);
         }

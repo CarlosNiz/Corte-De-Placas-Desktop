@@ -82,21 +82,50 @@
             </StackPanel>
         </Grid>
 
-        <!-- Peças que não couberam -->
-        <Border Grid.Row="1"
-                IsVisible="{Binding TemPecasDeFora}"
-                Margin="32,0,32,12"
-                Padding="14,10"
-                CornerRadius="8"
-                Background="{DynamicResource DangerSoftBrush}"
-                BorderBrush="{DynamicResource DangerBrush}"
-                BorderThickness="1.5">
-            <TextBlock Text="{Binding PecasDeFora}"
-                       FontSize="15"
-                       FontWeight="SemiBold"
-                       TextWrapping="Wrap"
-                       Foreground="{DynamicResource DangerBrush}" />
-        </Border>
+        <StackPanel Grid.Row="1">
+            <!-- Peças que não couberam -->
+            <Border IsVisible="{Binding TemPecasDeFora}"
+                    Margin="32,0,32,12"
+                    Padding="14,10"
+                    CornerRadius="8"
+                    Background="{DynamicResource DangerSoftBrush}"
+                    BorderBrush="{DynamicResource DangerBrush}"
+                    BorderThickness="1.5">
+                <TextBlock Text="{Binding PecasDeFora}"
+                           FontSize="15"
+                           FontWeight="SemiBold"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource DangerBrush}" />
+            </Border>
+
+            <!-- Aviso: vai precisar de mais de uma chapa -->
+            <Border IsVisible="{Binding TemVariasChapas}"
+                    Margin="32,0,32,12"
+                    Padding="14,10"
+                    CornerRadius="8"
+                    Background="{DynamicResource WarningSoftBrush}"
+                    BorderBrush="{DynamicResource WarningBrush}"
+                    BorderThickness="1.5">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                    <!-- triângulo de atenção -->
+                    <PathIcon Width="24" Height="21" VerticalAlignment="Top" Margin="0,1,0,0"
+                              Foreground="{DynamicResource WarningBrush}"
+                              Data="F0 M12,0.5 L23.5,20.5 H0.5 Z M10.8,7 V14 H13.2 V7 Z M10.8,15.6 V18 H13.2 V15.6 Z" />
+                    <StackPanel Grid.Column="1" Spacing="4">
+                        <TextBlock FontSize="15" TextWrapping="Wrap" LineHeight="21">
+                            <Run Text="{Binding TituloVariasChapas}" FontSize="16" FontWeight="Bold"
+                                 Foreground="{DynamicResource WarningBrush}" />
+                            <Run Text="{Binding TextoVariasChapas}" />
+                        </TextBlock>
+                        <TextBlock IsVisible="{Binding TemDicaDeEspessura}"
+                                   Text="{Binding DicaDeEspessura}"
+                                   FontSize="14"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </StackPanel>
 
         <!-- Abas das chapas -->
         <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" Margin="32,0,32,12">

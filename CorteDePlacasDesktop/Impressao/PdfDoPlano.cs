@@ -29,6 +29,7 @@ public static class PdfDoPlano
     private static readonly SKColor CorBordaPeca = new(0xC2, 0x41, 0x0C);
     private static readonly SKColor CorCorte = new(0x1D, 0x4E, 0xD8);
     private static readonly SKColor CorPerigo = new(0xB4, 0x23, 0x18);
+    private static readonly SKColor CorAviso = new(0xB5, 0x47, 0x08);
 
     public static void Gerar(ResultadoPlano resultado, string caminho)
     {
@@ -70,7 +71,9 @@ public static class PdfDoPlano
             .OrderBy(t => t.Numero)
             .ToList();
 
-        const int linhasNaPrimeira = 16;
+        // Avisos no topo da primeira página (peças de fora, várias chapas) tiram espaço da tabela
+        var linhasNaPrimeira = 16 - (r.NaoCouberam.Count > 0 ? 2 : 0) - (r.Chapas.Count > 1 ? 2 : 0)
+                               - (r.ChapasComPecasMenores is not null ? 2 : 0);
         const int linhasPorPagina = 26;
         var blocos = new List<List<(int, string, string, int, bool, string)>>();
         blocos.Add(tipos.Take(linhasNaPrimeira).ToList());
@@ -91,14 +94,12 @@ public static class PdfDoPlano
 
                 if (primeira)
                 {
-                    var tipo = r.Tipo == TipoCorte.Serra ? "Serra (cortes de ponta a ponta)" : "CNC (peças em qualquer posição)";
-                    var espessura = r.Tipo == TipoCorte.Serra ? "Espessura da serra" : "Diâmetro da fresa";
                     var formato = r.Chapa.EhRetanguloSimples ? "retângulo" : "formato desenhado";
                     var linhas = new[]
                     {
-                        $"Tipo de corte: {tipo}",
+                        $"Arrumação: {r.ArrumacaoExplicada}",
                         $"Chapa: {Mm(r.Chapa.Limites.Comprimento)} × {Mm(r.Chapa.Limites.Largura)} mm ({formato})",
-                        $"Aparar bordas: {Mm(r.Refilo)} mm   ·   {espessura}: {Mm(r.Espessura)} mm",
+                        $"Aparar bordas: {Mm(r.Refilo)} mm   ·   Espessura do corte: {Mm(r.Espessura)} mm",
                         $"Chapas necessárias: {r.Chapas.Count}   ·   Peças: {r.TotalPecas}   ·   Aproveitamento médio: {r.AproveitamentoMedio.ToString("P0", Cultura)}",
                     };
                     foreach (var linha in linhas)
@@ -116,6 +117,25 @@ public static class PdfDoPlano
                         {
                             Texto(canvas, linha, Margem, y, 12, true, CorPerigo);
                             y += 16;
+                        }
+                    }
+
+                    if (r.Chapas.Count > 1)
+                    {
+                        y += 4;
+                        var aviso = $"Atenção: este plano precisa de {r.Chapas.Count} chapas. {r.SepareAsChapas}";
+                        foreach (var linha in Quebrar(aviso, 12, true, Largura - 2 * Margem))
+                        {
+                            Texto(canvas, linha, Margem, y, 12, true, CorAviso);
+                            y += 16;
+                        }
+                        if (r.DicaDaEspessura is { } dica)
+                        {
+                            foreach (var linha in Quebrar(dica, 11, false, Largura - 2 * Margem))
+                            {
+                                Texto(canvas, linha, Margem, y, 11, false, CorFraca);
+                                y += 15;
+                            }
                         }
                     }
                     y += 14;
@@ -206,7 +226,7 @@ public static class PdfDoPlano
         Texto(canvas, $"Chapa {chapa.Numero} de {r.Chapas.Count}{complemento}", Margem, Margem + 14, 18, true, CorTexto);
         var detalhe = $"{(chapa.Pecas.Count == 1 ? "1 peça" : $"{chapa.Pecas.Count} peças")}   ·   aproveitamento {chapa.Aproveitamento.ToString("P0", Cultura)}   ·   " +
                       $"chapa {Mm(r.Chapa.Limites.Comprimento)} × {Mm(r.Chapa.Limites.Largura)} mm   ·   " +
-                      (r.Tipo == TipoCorte.Serra ? "Serra" : "CNC");
+                      r.Arrumacao;
         Texto(canvas, detalhe, Margem, Margem + 32, 10.5f, false, CorFraca);
         Linha(canvas, Margem, Margem + 40, Largura - Margem, Margem + 40, CorLinha, 1);
     }
@@ -249,6 +269,29 @@ public static class PdfDoPlano
         canvas.RotateDegrees(-90, esquerda.X - 6, esquerda.Y);
         Texto(canvas, $"{Mm(limites.Largura)} mm", esquerda.X - 6, esquerda.Y, 9, false, CorFraca, SKTextAlign.Center);
         canvas.Restore();
+
+        // Maior sobra: contorno tracejado e a medida
+        if (chapa.Sobra is { } sobra && chapa.TextoSobra is { } textoSobra)
+        {
+            var canto = T(new Ponto(sobra.X, sobra.Topo));
+            var outro = T(new Ponto(sobra.Direita, sobra.Y));
+            var rectSobra = new SKRect(canto.X + 2, canto.Y + 2, outro.X - 2, outro.Y - 2);
+            if (rectSobra.Width > 0 && rectSobra.Height > 0)
+            {
+                using var tracejadoSobra = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, Color = CorFraca, StrokeWidth = 0.6f,
+                    PathEffect = SKPathEffect.CreateDash([4, 3], 0) };
+                canvas.DrawRect(rectSobra, tracejadoSobra);
+                if (Medir(textoSobra, 8, true) + 6 < rectSobra.Width && rectSobra.Height > 14)
+                {
+                    Texto(canvas, textoSobra, rectSobra.MidX, rectSobra.MidY + 3, 8, true, CorFraca, SKTextAlign.Center);
+                }
+                else if (Medir(textoSobra["Sobra ".Length..], 8, true) + 4 < rectSobra.Width && rectSobra.Height > 24)
+                {
+                    Texto(canvas, "Sobra", rectSobra.MidX, rectSobra.MidY - 2, 8, true, CorFraca, SKTextAlign.Center);
+                    Texto(canvas, textoSobra["Sobra ".Length..], rectSobra.MidX, rectSobra.MidY + 8, 8, true, CorFraca, SKTextAlign.Center);
+                }
+            }
+        }
 
         // Peças
         foreach (var peca in chapa.Pecas)

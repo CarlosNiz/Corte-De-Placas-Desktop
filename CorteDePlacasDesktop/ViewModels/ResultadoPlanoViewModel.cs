@@ -41,10 +41,10 @@ public partial class ResultadoPlanoViewModel : ViewModelBase
     {
         get
         {
-            var tipo = EhSerra ? "Serra" : "CNC";
             var chapas = Resultado.Chapas.Count == 1 ? "1 chapa" : $"{Resultado.Chapas.Count} chapas";
             var pecas = Resultado.TotalPecas == 1 ? "1 peça" : $"{Resultado.TotalPecas} peças";
-            return $"{tipo} · {chapas} · {pecas} · aproveitamento médio {Resultado.AproveitamentoMedio:P0}";
+            return $"{Resultado.Arrumacao} · corte de {Resultado.Espessura:0.#} mm · {chapas} · {pecas} · " +
+                   $"aproveitamento médio {Resultado.AproveitamentoMedio:P0}";
         }
     }
 
@@ -61,6 +61,16 @@ public partial class ResultadoPlanoViewModel : ViewModelBase
             $"{n.QuantidadeQueNaoCoube} × {n.Peca.Descricao} ({n.Peca.Comprimento:0.#} × {n.Peca.Largura:0.#} mm)"));
 
     public bool TemVariasChapas => Chapas.Count > 1;
+
+    // ---- Aviso de várias chapas ----
+
+    public string TituloVariasChapas => $"Este plano precisa de {Chapas.Count} chapas.";
+
+    public string TextoVariasChapas => $" {Resultado.SepareAsChapas} Clique nas abas abaixo para ver o que cortar em cada uma.";
+
+    public bool TemDicaDeEspessura => Resultado.DicaDaEspessura is not null;
+
+    public string DicaDeEspessura => Resultado.DicaDaEspessura ?? "";
 
     // ---- Chapa e passo selecionados ----
 
@@ -213,7 +223,7 @@ public partial class PassoViewModel : ViewModelBase
 
     public PecaNaChapa? Peca { get; }
 
-    /// <summary>Refilo e separação de blocos aparecem diferentes dos cortes das peças.</summary>
+    /// <summary>Aparar as bordas aparece diferente dos cortes das peças.</summary>
     public bool EhPreparo => Corte is { Tipo: not TipoDePasso.Corte };
 
     internal Action<PassoViewModel>? AoSelecionar { get; set; }
