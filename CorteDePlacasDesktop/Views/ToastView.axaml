@@ -20,17 +20,19 @@
             </Style.Animations>
         </Style>
 
-        <!-- Cores por tipo -->
-        <Style Selector="Border.toast.sucesso Border.icone">
+        <!-- Cores por tipo: verde para sucesso, vermelho para erro -->
+        <Style Selector="Border.toast.sucesso">
             <Setter Property="Background" Value="{DynamicResource SuccessSoftBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
         </Style>
-        <Style Selector="Border.toast.sucesso PathIcon">
+        <Style Selector="Border.toast.sucesso PathIcon.tipo">
             <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
         </Style>
-        <Style Selector="Border.toast.erro Border.icone">
+        <Style Selector="Border.toast.erro">
             <Setter Property="Background" Value="{DynamicResource DangerSoftBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
         </Style>
-        <Style Selector="Border.toast.erro PathIcon">
+        <Style Selector="Border.toast.erro PathIcon.tipo">
             <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
         </Style>
 
@@ -45,42 +47,34 @@
         </Style>
     </UserControl.Styles>
 
+    <!-- Fica dentro da barra superior (44 px de altura): compacto, colorido e sem sombra -->
     <Border Classes="toast"
             Classes.sucesso="{Binding EhSucesso}"
             Classes.erro="{Binding EhErro}"
-            MinWidth="340"
-            MaxWidth="460"
-            Margin="16,6,16,16"
-            Padding="14,12,8,12"
-            CornerRadius="12"
-            Background="{DynamicResource SurfaceBrush}"
-            BorderBrush="{DynamicResource SurfaceBorderBrush}"
-            BorderThickness="1"
-            BoxShadow="0 4 14 0 #26000000">
-        <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
+            MinWidth="300"
+            MaxWidth="560"
+            Height="42"
+            Padding="14,0,4,0"
+            CornerRadius="10"
+            BorderThickness="1.5">
+        <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
 
-            <Border Grid.Column="0"
-                    Classes="icone"
-                    Width="32" Height="32"
-                    CornerRadius="16"
-                    VerticalAlignment="Center">
-                <Panel>
-                    <!-- Sucesso: ✓ -->
-                    <PathIcon Width="15" Height="11"
-                              IsVisible="{Binding EhSucesso}"
-                              Data="M5.3,11 L0,5.7 L1.4,4.3 L5.3,8.2 L13.6,0 L15,1.4 Z" />
-                    <!-- Erro: ! -->
-                    <PathIcon Width="3" Height="15"
-                              IsVisible="{Binding EhErro}"
-                              Data="M0,0 H3 V10 H0 Z M0,12 H3 V15 H0 Z" />
-                </Panel>
-            </Border>
+            <Panel Grid.Column="0" Width="18" VerticalAlignment="Center">
+                <!-- Sucesso: ✓ -->
+                <PathIcon Classes="tipo" Width="16" Height="12"
+                          IsVisible="{Binding EhSucesso}"
+                          Data="M5.3,11 L0,5.7 L1.4,4.3 L5.3,8.2 L13.6,0 L15,1.4 Z" />
+                <!-- Erro: ! -->
+                <PathIcon Classes="tipo" Width="4" Height="17"
+                          IsVisible="{Binding EhErro}"
+                          Data="M0,0 H3 V10 H0 Z M0,12 H3 V15 H0 Z" />
+            </Panel>
 
             <TextBlock Grid.Column="1"
                        Text="{Binding Mensagem}"
                        FontSize="15"
-                       FontWeight="Medium"
-                       TextWrapping="Wrap"
+                       FontWeight="SemiBold"
+                       TextTrimming="CharacterEllipsis"
                        VerticalAlignment="Center" />
 
             <Button Grid.Column="2"

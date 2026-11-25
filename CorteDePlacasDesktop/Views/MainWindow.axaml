@@ -49,6 +49,12 @@
                         <TextBlock Text="Início" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
+
+                <!-- Aviso (toast) no centro da barra: bem visível e nunca cobre a área de trabalho -->
+                <ItemsControl Grid.Column="0" Grid.ColumnSpan="2"
+                              ItemsSource="{Binding Toasts}"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center" />
             </Grid>
         </Border>
 
@@ -63,21 +69,6 @@
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center" />
         </Border>
-
-        <!-- Avisos (toasts), embaixo e ao centro, logo acima do rodapé das telas
-             (assim não cobrem as ferramentas do alto) -->
-        <ItemsControl Grid.Row="1"
-                      ItemsSource="{Binding Toasts}"
-                      HorizontalAlignment="Center"
-                      VerticalAlignment="Bottom"
-                      Margin="0,0,0,72">
-            <!-- O espaço entre os avisos vem da margem de cada um (reserva lugar para a sombra) -->
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <StackPanel />
-                </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-        </ItemsControl>
     </Grid>
 
 </Window>

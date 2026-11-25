@@ -29,7 +29,7 @@ public class EditorChapaCanvas : Control
     private const double RaioCanto = 8;          // px
     private const double RaioToque = 15;         // px: distância para "pegar" um canto
     private const double DistanciaBorda = 10;    // px: distância para clicar numa borda
-    private const double DistanciaAlinhar = 9;   // px: distância para alinhar com outro canto
+    private const double DistanciaAlinhar = 8;   // px: distância para "grudar" numa linha de referência
     private const double PassoGrade = 10;        // mm: os pontos "grudam" de 10 em 10 mm
 
     private static readonly double[] PassosGrade = [10, 20, 50, 100, 200, 250, 500, 1000, 2000, 5000];
@@ -47,6 +47,7 @@ public class EditorChapaCanvas : Control
     private FormaChapa _formaNoInicioDoArraste;
     private Ponto _inicioDoArraste;
     private Ponto? _inicioNovaForma;
+    private FormaChapa? _formaNova;
     private Ponto? _mouse;
     private CantoViewModel? _cantoSobMouse;
     private FormaViewModel? _formaSobMouse;
@@ -54,6 +55,12 @@ public class EditorChapaCanvas : Control
     private bool _sobrePrimeiroCanto;
     private double? _guiaX;
     private double? _guiaY;
+    private string? _rotuloGuiaX;
+    private string? _rotuloGuiaY;
+    private IReadOnlyList<IReadOnlyList<Ponto>>? _regiaoSemFormaArrastada;
+
+    /// <summary>Com Alt apertado, nada gruda nas linhas de referência (só na grade de 10 mm).</summary>
+    private bool _semReferencias;
 
     private static Cursor? _cursorMao;
     private static Cursor? _cursorCruz;
@@ -126,38 +133,119 @@ public class EditorChapaCanvas : Control
     }
 
     /// <summary>
-    /// Converte a posição do mouse em milímetros, "grudando" na grade de 10 mm e alinhando
-    /// com outros cantos próximos (para bordas retas sem esforço).
+    /// Linhas de referência (em mm): os cantos da placa e as bordas e o centro de cada forma.
     /// </summary>
-    private Ponto Ajustar(Point tela, CantoViewModel? ignorar, bool mostrarGuias)
+    private (List<double> Xs, List<double> Ys) Referencias(CantoViewModel? semCanto, FormaViewModel? semForma)
     {
-        var p = ParaMundo(tela);
-        var x = NaGrade(p.X);
-        var y = NaGrade(p.Y);
-        double melhorX = DistanciaAlinhar, melhorY = DistanciaAlinhar;
-        double? guiaX = null, guiaY = null;
-
+        var xs = new List<double>();
+        var ys = new List<double>();
         foreach (var canto in Editor?.Cantos ?? [])
         {
-            if (canto == ignorar || !canto.EstaCompleto)
+            if (canto == semCanto || !canto.EstaCompleto)
                 continue;
-            var t = ParaTela(canto.Ponto);
-            if (Math.Abs(t.X - tela.X) < melhorX)
+            xs.Add(canto.Ponto.X);
+            ys.Add(canto.Ponto.Y);
+        }
+        foreach (var forma in Editor?.Formas ?? [])
+        {
+            if (forma == semForma || !forma.EstaCompleta)
+                continue;
+            var l = forma.Forma.Limites;
+            xs.AddRange([l.X, l.Centro.X, l.Direita]);
+            ys.AddRange([l.Y, l.Centro.Y, l.Topo]);
+        }
+        return (xs, ys);
+    }
+
+    /// <summary>
+    /// Para um trecho [inicio, inicio + tamanho] num eixo: quanto deslocar para que o começo, o meio
+    /// ou o fim caia exatamente numa linha de referência próxima. Null se nenhuma estiver perto.
+    /// </summary>
+    private double? Alinhar(double inicio, double tamanho, List<double> referencias, out double? guia) =>
+        Alinhar(inicio, tamanho, referencias, [], out guia, out _);
+
+    /// <summary>
+    /// Igual ao anterior, mas também tenta pôr o <b>meio</b> do trecho numa linha de centralização
+    /// (centro da placa ou meio entre as bordas). Devolve o nome da linha usada, se for de centralização.
+    /// </summary>
+    private double? Alinhar(double inicio, double tamanho, List<double> referencias,
+        List<(double Valor, string Rotulo)> centros, out double? guia, out string? rotulo)
+    {
+        guia = null;
+        rotulo = null;
+        double? melhor = null;
+        if (_semReferencias)
+            return null;
+        var tolerancia = DistanciaAlinhar / _escala;
+        foreach (var ancora in new[] { inicio, inicio + tamanho / 2, inicio + tamanho })
+        {
+            foreach (var r in referencias)
             {
-                melhorX = Math.Abs(t.X - tela.X);
-                x = canto.Ponto.X;
-                guiaX = x;
-            }
-            if (Math.Abs(t.Y - tela.Y) < melhorY)
-            {
-                melhorY = Math.Abs(t.Y - tela.Y);
-                y = canto.Ponto.Y;
-                guiaY = y;
+                var d = r - ancora;
+                if (Math.Abs(d) < tolerancia && (melhor is null || Math.Abs(d) < Math.Abs(melhor.Value)))
+                {
+                    melhor = d;
+                    guia = r;
+                }
             }
         }
 
+        var meio = inicio + tamanho / 2;
+        foreach (var (valor, nome) in centros)
+        {
+            var d = valor - meio;
+            if (Math.Abs(d) < tolerancia && (melhor is null || Math.Abs(d) < Math.Abs(melhor.Value) - 1e-6))
+            {
+                melhor = d;
+                guia = valor;
+                rotulo = nome;
+            }
+        }
+        return melhor;
+    }
+
+    /// <summary>
+    /// Linhas de centralização para algo centrado em <paramref name="centro"/>: o centro da placa
+    /// e o meio entre as bordas da placa naquela altura (horizontal) e naquela posição (vertical).
+    /// </summary>
+    private static (List<(double Valor, string Rotulo)> Xs, List<(double Valor, string Rotulo)> Ys) Centros(
+        Ponto centro, IReadOnlyList<IReadOnlyList<Ponto>>? regiao)
+    {
+        var xs = new List<(double, string)>();
+        var ys = new List<(double, string)>();
+        if (regiao is null || regiao.Count == 0)
+            return (xs, ys);
+
+        var limites = Geometria.Limites(regiao.SelectMany(p => p));
+        xs.Add((limites.Centro.X, "Centro da placa"));
+        ys.Add((limites.Centro.Y, "Centro da placa"));
+
+        if (Geometria.PontoDentroRegiao(regiao, centro))
+        {
+            if (DistanciaAteBorda(regiao, centro, -1, 0) is double esq && DistanciaAteBorda(regiao, centro, 1, 0) is double dir)
+                xs.Add((centro.X + (dir - esq) / 2, "Centralizado entre as bordas"));
+            if (DistanciaAteBorda(regiao, centro, 0, -1) is double baixo && DistanciaAteBorda(regiao, centro, 0, 1) is double cima)
+                ys.Add((centro.Y + (cima - baixo) / 2, "Centralizado entre as bordas"));
+        }
+        return (xs, ys);
+    }
+
+    /// <summary>
+    /// Converte a posição do mouse em milímetros, "grudando" na grade de 10 mm e nas linhas de
+    /// referência próximas (cantos e formas), para alinhar sem esforço. Com <paramref name="comCentros"/>,
+    /// também gruda no centro da placa e no meio entre as bordas (usado ao criar formas).
+    /// </summary>
+    private Ponto Ajustar(Point tela, CantoViewModel? ignorar, bool mostrarGuias, bool comCentros = false)
+    {
+        var p = ParaMundo(tela);
+        var (xs, ys) = Referencias(ignorar, null);
+        var (cxs, cys) = comCentros ? Centros(p, Editor?.Formato?.Regiao) : ([], []);
+        var x = Alinhar(p.X, 0, xs, cxs, out var guiaX, out var rotuloX) is double ax ? p.X + ax : NaGrade(p.X);
+        var y = Alinhar(p.Y, 0, ys, cys, out var guiaY, out var rotuloY) is double ay ? p.Y + ay : NaGrade(p.Y);
         _guiaX = mostrarGuias ? guiaX : null;
         _guiaY = mostrarGuias ? guiaY : null;
+        _rotuloGuiaX = mostrarGuias ? rotuloX : null;
+        _rotuloGuiaY = mostrarGuias ? rotuloY : null;
         return new Ponto(x, y);
     }
 
@@ -227,17 +315,101 @@ public class EditorChapaCanvas : Control
         return melhor;
     }
 
-    /// <summary>Forma que está sendo criada com o mouse (do clique até a posição atual).</summary>
-    private FormaChapa? NovaFormaEmAndamento(EditorChapaViewModel editor)
+    /// <summary>
+    /// Forma que está sendo criada com o mouse (do clique até a posição atual).
+    /// O retângulo gruda os cantos nas referências; o círculo ajusta o raio para encostar numa referência.
+    /// </summary>
+    private FormaChapa? CalcularNovaForma(EditorChapaViewModel editor, Point tela)
     {
-        if (_inicioNovaForma is not Ponto inicio || _mouse is not Ponto fim)
+        if (_inicioNovaForma is not Ponto inicio)
             return null;
-        if (editor.EmCirculo)
+
+        if (!editor.EmCirculo)
         {
-            var diametro = NaGrade(2 * Geometria.Distancia(inicio, fim));
-            return FormaChapa.Circular(editor.OperacaoNovaForma, inicio, diametro);
+            var fim = Ajustar(tela, null, mostrarGuias: true);
+            _mouse = fim;
+            return FormaChapa.Retangular(editor.OperacaoNovaForma, Retangulo.EntrePontos(inicio, fim));
         }
-        return FormaChapa.Retangular(editor.OperacaoNovaForma, Retangulo.EntrePontos(inicio, fim));
+
+        var bruto = ParaMundo(tela);
+        _mouse = bruto;
+        var raio = Geometria.Distancia(inicio, bruto);
+        var raioFinal = NaGrade(2 * raio) / 2;
+        _guiaX = _guiaY = null;
+        _rotuloGuiaX = _rotuloGuiaY = null;
+        if (_semReferencias)
+            return FormaChapa.Circular(editor.OperacaoNovaForma, inicio, 2 * raioFinal);
+
+        var tolerancia = DistanciaAlinhar / _escala;
+        var (xs, ys) = Referencias(null, null);
+        foreach (var rx in xs)
+        {
+            var r = Math.Abs(rx - inicio.X);
+            if (r > 0 && Math.Abs(r - raio) < tolerancia)
+            {
+                tolerancia = Math.Abs(r - raio);
+                raioFinal = r;
+                (_guiaX, _guiaY) = (rx, null);
+            }
+        }
+        foreach (var ry in ys)
+        {
+            var r = Math.Abs(ry - inicio.Y);
+            if (r > 0 && Math.Abs(r - raio) < tolerancia)
+            {
+                tolerancia = Math.Abs(r - raio);
+                raioFinal = r;
+                (_guiaX, _guiaY) = (null, ry);
+            }
+        }
+        return FormaChapa.Circular(editor.OperacaoNovaForma, inicio, 2 * raioFinal);
+    }
+
+    /// <summary>
+    /// A placa sem uma das formas (para medir a distância da forma até a borda sem que ela atrapalhe).
+    /// </summary>
+    private static IReadOnlyList<IReadOnlyList<Ponto>>? RegiaoSem(EditorChapaViewModel editor, FormaViewModel? sem)
+    {
+        if (editor.EmDesenho || editor.Cantos.Count < 3 || editor.Cantos.Any(c => !c.EstaCompleto)
+            || editor.Formas.Any(f => !f.EstaCompleta))
+        {
+            return null;
+        }
+        return new FormatoChapa(editor.Cantos.Select(c => c.Ponto), editor.Formas.Where(f => f != sem).Select(f => f.Forma)).Regiao;
+    }
+
+    /// <summary>
+    /// Distância (mm) de um ponto até a borda da placa mais próxima numa direção (horizontal ou vertical).
+    /// </summary>
+    private static double? DistanciaAteBorda(IReadOnlyList<IReadOnlyList<Ponto>> regiao, Ponto origem, int dx, int dy)
+    {
+        double? menor = null;
+        foreach (var contorno in regiao)
+        {
+            for (var i = 0; i < contorno.Count; i++)
+            {
+                var a = contorno[i];
+                var b = contorno[(i + 1) % contorno.Count];
+                double d;
+                if (dy == 0)
+                {
+                    if ((a.Y > origem.Y) == (b.Y > origem.Y))
+                        continue;
+                    var x = a.X + (origem.Y - a.Y) * (b.X - a.X) / (b.Y - a.Y);
+                    d = (x - origem.X) * dx;
+                }
+                else
+                {
+                    if ((a.X > origem.X) == (b.X > origem.X))
+                        continue;
+                    var y = a.Y + (origem.X - a.X) * (b.Y - a.Y) / (b.X - a.X);
+                    d = (y - origem.Y) * dy;
+                }
+                if (d >= -0.01 && (menor is null || d < menor))
+                    menor = d;
+            }
+        }
+        return menor is double v ? Math.Max(0, v) : null;
     }
 
     // ---------------------------------------------------------------- mouse e teclado
@@ -245,6 +417,7 @@ public class EditorChapaCanvas : Control
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
+        _semReferencias = e.KeyModifiers.HasFlag(KeyModifiers.Alt);
         var editor = Editor;
         var ponto = e.GetCurrentPoint(this);
         if (editor is null || !ponto.Properties.IsLeftButtonPressed)
@@ -269,6 +442,7 @@ public class EditorChapaCanvas : Control
                     editor.SelecionarForma(forma);
                     _formaArrastada = forma;
                     _formaNoInicioDoArraste = forma.Forma;
+                    _regiaoSemFormaArrastada = RegiaoSem(editor, forma);
                     _inicioDoArraste = ParaMundo(tela);
                 }
                 else if (BordaEm(tela, out var naBorda) is var borda and >= 0)
@@ -297,7 +471,9 @@ public class EditorChapaCanvas : Control
 
             case ModoEditor.Retangulo:
             case ModoEditor.Circulo:
-                _inicioNovaForma = Ajustar(tela, null, mostrarGuias: false);
+                // O centro do círculo pode ser centralizado; o canto do retângulo, não.
+                _inicioNovaForma = Ajustar(tela, null, mostrarGuias: true, comCentros: editor.EmCirculo);
+                _formaNova = null;
                 _mouse = _inicioNovaForma;
                 _mundoTravado = true;
                 e.Pointer.Capture(this);
@@ -311,6 +487,7 @@ public class EditorChapaCanvas : Control
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
+        _semReferencias = e.KeyModifiers.HasFlag(KeyModifiers.Alt);
         var editor = Editor;
         if (editor is null)
             return;
@@ -325,16 +502,33 @@ public class EditorChapaCanvas : Control
         }
         else if (_formaArrastada is not null)
         {
+            // A forma acompanha o mouse; se a borda ou o centro dela chega perto de uma linha
+            // de referência, ela gruda ali (e a linha aparece). Senão, anda de 10 em 10 mm.
             var atual = ParaMundo(tela);
-            var dx = NaGrade(atual.X - _inicioDoArraste.X);
-            var dy = NaGrade(atual.Y - _inicioDoArraste.Y);
+            var brutoDx = atual.X - _inicioDoArraste.X;
+            var brutoDy = atual.Y - _inicioDoArraste.Y;
+            var bruto = _formaNoInicioDoArraste.Deslocada(brutoDx, brutoDy).Limites;
+            var (xs, ys) = Referencias(null, _formaArrastada);
+            var (cxs, cys) = Centros(bruto.Centro, _regiaoSemFormaArrastada);
+
+            var dx = Alinhar(bruto.X, bruto.Comprimento, xs, cxs, out _guiaX, out _rotuloGuiaX) is double ax
+                ? brutoDx + ax
+                : NaGrade(brutoDx);
+            var dy = Alinhar(bruto.Y, bruto.Largura, ys, cys, out _guiaY, out _rotuloGuiaY) is double ay
+                ? brutoDy + ay
+                : NaGrade(brutoDy);
             editor.MoverForma(_formaArrastada, _formaNoInicioDoArraste.Deslocada(dx, dy));
-            _mouse = Ajustar(tela, null, mostrarGuias: false);
+            _mouse = atual;
             Cursor = CursorMover;
+        }
+        else if (_inicioNovaForma is not null)
+        {
+            _formaNova = CalcularNovaForma(editor, tela);
+            Cursor = CursorCruz;
         }
         else
         {
-            _mouse = Ajustar(tela, null, mostrarGuias: editor.EmDesenho || _inicioNovaForma is not null);
+            _mouse = Ajustar(tela, null, mostrarGuias: editor.EmDesenho);
             _cantoSobMouse = editor.EmAjuste ? CantoEm(tela) : null;
             _formaSobMouse = editor.EmAjuste && _cantoSobMouse is null ? FormaEm(tela) : null;
             _sobreBorda = editor.EmAjuste && _cantoSobMouse is null && _formaSobMouse is null && BordaEm(tela, out _) >= 0;
@@ -351,12 +545,15 @@ public class EditorChapaCanvas : Control
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
+        _semReferencias = e.KeyModifiers.HasFlag(KeyModifiers.Alt);
         var editor = Editor;
         if (editor is not null && _inicioNovaForma is not null)
         {
-            _mouse = Ajustar(e.GetPosition(this), null, mostrarGuias: false);
-            if (NovaFormaEmAndamento(editor) is { } forma && forma.Limites.Comprimento >= 5 && forma.Limites.Largura >= 5)
+            if (CalcularNovaForma(editor, e.GetPosition(this)) is { } forma
+                && forma.Limites.Comprimento >= 5 && forma.Limites.Largura >= 5)
+            {
                 editor.AdicionarForma(forma);
+            }
         }
         TerminarArraste(e.Pointer);
     }
@@ -392,8 +589,11 @@ public class EditorChapaCanvas : Control
         _cantoArrastado = null;
         _formaArrastada = null;
         _inicioNovaForma = null;
+        _formaNova = null;
+        _regiaoSemFormaArrastada = null;
         _mundoTravado = false;
         _guiaX = _guiaY = null;
+        _rotuloGuiaX = _rotuloGuiaY = null;
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
@@ -495,15 +695,91 @@ public class EditorChapaCanvas : Control
         foreach (var forma in editor.Formas.Where(f => f.EstaCompleta))
             DesenharForma(ctx, cores, forma.Forma, forma.Remove ? "−" : "+", forma.Numero, forma.Selecionada || forma == _formaSobMouse);
 
-        if (NovaFormaEmAndamento(editor) is { } nova)
+        if (_formaNova is { } nova)
             DesenharForma(ctx, cores, nova, null, 0, destacada: true);
 
         if (!editor.EmDesenho && pontos.Count >= 3)
             DesenharMedidasDasBordas(ctx, cores, cantos, pontos);
 
         DesenharGuias(ctx, cores);
+        DesenharCotasDaForma(ctx, cores, editor);
         DesenharCantos(ctx, cores, editor, cantos, pontos);
         DesenharPosicaoDoMouse(ctx, cores, editor);
+    }
+
+    /// <summary>
+    /// Para a forma sendo criada, arrastada ou selecionada: linhas azuis com a distância até a
+    /// borda da placa mais próxima, na horizontal e na vertical. No círculo, a medida sai do centro
+    /// (é assim que se marca um furo).
+    /// </summary>
+    private void DesenharCotasDaForma(DrawingContext ctx, Cores cores, EditorChapaViewModel editor)
+    {
+        FormaChapa forma;
+        IReadOnlyList<IReadOnlyList<Ponto>>? regiao;
+        if (_formaNova is { } nova)
+        {
+            forma = nova;
+            regiao = editor.Formato?.Regiao;
+        }
+        else if ((_formaArrastada ?? editor.FormaSelecionada) is { EstaCompleta: true } vm)
+        {
+            forma = vm.Forma;
+            regiao = RegiaoSem(editor, vm);
+        }
+        else
+        {
+            return;
+        }
+        if (regiao is null || regiao.Count == 0)
+            return;
+
+        var l = forma.Limites;
+        var circulo = forma.Tipo == TipoForma.Circulo;
+        var c = l.Centro;
+
+        // Horizontal: para a esquerda e para a direita; fica a mais curta.
+        // Se as duas são iguais (forma centralizada), mostra as duas.
+        var origemEsq = circulo ? c : new Ponto(l.X, c.Y);
+        var origemDir = circulo ? c : new Ponto(l.Direita, c.Y);
+        var esq = DistanciaAteBorda(regiao, origemEsq, -1, 0);
+        var dir = DistanciaAteBorda(regiao, origemDir, 1, 0);
+        var centradaX = esq is double e1 && dir is double d1 && Math.Abs(e1 - d1) < 0.5;
+        if (esq is double e && (dir is null || e <= dir || centradaX))
+            DesenharCota(ctx, cores, origemEsq, new Ponto(origemEsq.X - e, origemEsq.Y), e);
+        if (dir is double d && (esq is null || d < esq || centradaX))
+            DesenharCota(ctx, cores, origemDir, new Ponto(origemDir.X + d, origemDir.Y), d);
+
+        // Vertical: para baixo e para cima; mesma regra
+        var origemBaixo = circulo ? c : new Ponto(c.X, l.Y);
+        var origemCima = circulo ? c : new Ponto(c.X, l.Topo);
+        var baixo = DistanciaAteBorda(regiao, origemBaixo, 0, -1);
+        var cima = DistanciaAteBorda(regiao, origemCima, 0, 1);
+        var centradaY = baixo is double b1 && cima is double t1 && Math.Abs(b1 - t1) < 0.5;
+        if (baixo is double b && (cima is null || b <= cima || centradaY))
+            DesenharCota(ctx, cores, origemBaixo, new Ponto(origemBaixo.X, origemBaixo.Y - b), b);
+        if (cima is double t && (baixo is null || t < baixo || centradaY))
+            DesenharCota(ctx, cores, origemCima, new Ponto(origemCima.X, origemCima.Y + t), t);
+    }
+
+    /// <summary>Linha de medida (cota) com traços nas pontas e o valor no meio.</summary>
+    private void DesenharCota(DrawingContext ctx, Cores cores, Ponto de, Ponto ate, double valor)
+    {
+        if (valor < 1)
+            return;
+        var a = ParaTela(de);
+        var b = ParaTela(ate);
+        if (Distancia(a, b) < 10)
+            return;
+
+        var pen = new Pen(cores.Cota, 1.5);
+        ctx.DrawLine(pen, a, b);
+        var horizontal = Math.Abs(a.Y - b.Y) < 0.5;
+        var (tx, ty) = horizontal ? (0.0, 6.0) : (6.0, 0.0);
+        ctx.DrawLine(pen, new Point(a.X - tx, a.Y - ty), new Point(a.X + tx, a.Y + ty));
+        ctx.DrawLine(pen, new Point(b.X - tx, b.Y - ty), new Point(b.X + tx, b.Y + ty));
+
+        var meio = new Point((a.X + b.X) / 2, (a.Y + b.Y) / 2);
+        DesenhoChapa.Etiqueta(ctx, $"{valor:0.#}", meio, cores.Fundo, cores.Cota, cores.Cota, 13);
     }
 
     private void DesenharGrade(DrawingContext ctx, Cores cores)
@@ -625,18 +901,34 @@ public class EditorChapaCanvas : Control
         return Geometria.PontoDentro(poligonoTela, teste) ? new Point(-normal.X, -normal.Y) : normal;
     }
 
+    /// <summary>
+    /// Linhas de referência ativas. As de centralização são mais fortes (traço-ponto) e levam
+    /// uma etiqueta dizendo o que está centralizado.
+    /// </summary>
     private void DesenharGuias(DrawingContext ctx, Cores cores)
     {
-        var pen = new Pen(cores.Marca, 1, new DashStyle([4, 4], 0));
+        var alinhamento = new Pen(cores.Marca, 1, new DashStyle([4, 4], 0));
+        var centralizacao = new Pen(cores.Marca, 1.8, new DashStyle([8, 3, 2, 3], 0));
+
         if (_guiaX is double gx)
         {
             var x = ParaTela(new Ponto(gx, 0)).X;
-            ctx.DrawLine(pen, new Point(x, MargemSuperior), new Point(x, Bounds.Height - MargemInferior));
+            ctx.DrawLine(_rotuloGuiaX is null ? alinhamento : centralizacao,
+                new Point(x, MargemSuperior), new Point(x, Bounds.Height - MargemInferior));
+            if (_rotuloGuiaX is { } rotulo)
+                DesenhoChapa.Etiqueta(ctx, rotulo, new Point(x, MargemSuperior + 14), cores.Marca, cores.Marca, cores.Fundo, 13);
         }
         if (_guiaY is double gy)
         {
             var y = ParaTela(new Ponto(0, gy)).Y;
-            ctx.DrawLine(pen, new Point(MargemEsquerda, y), new Point(Bounds.Width - MargemDireita, y));
+            ctx.DrawLine(_rotuloGuiaY is null ? alinhamento : centralizacao,
+                new Point(MargemEsquerda, y), new Point(Bounds.Width - MargemDireita, y));
+            if (_rotuloGuiaY is { } rotulo)
+            {
+                var largura = DesenhoChapa.Texto(rotulo, 13, cores.Fundo, forte: true).Width;
+                DesenhoChapa.Etiqueta(ctx, rotulo, new Point(Bounds.Width - MargemDireita - largura / 2 - 10, y),
+                    cores.Marca, cores.Marca, cores.Fundo, 13);
+            }
         }
     }
 
@@ -690,11 +982,12 @@ public class EditorChapaCanvas : Control
         if (_mouse is not Ponto p)
             return;
         var texto = $"X {p.X:0.#}   Y {p.Y:0.#} mm";
-        if (NovaFormaEmAndamento(editor) is { } nova)
+        var forma = _formaNova ?? (_formaArrastada is { EstaCompleta: true } arrastada ? arrastada.Forma : null);
+        if (forma is { } f)
         {
-            texto = nova.Tipo == TipoForma.Circulo
-                ? $"Centro X {nova.Centro.X:0.#}  Y {nova.Centro.Y:0.#}   Ø {nova.Diametro:0.#} mm"
-                : $"{nova.Limites.Comprimento:0.#} × {nova.Limites.Largura:0.#} mm";
+            texto = f.Tipo == TipoForma.Circulo
+                ? $"Centro X {f.Centro.X:0.#}  Y {f.Centro.Y:0.#}   Ø {f.Diametro:0.#} mm"
+                : $"X {f.Limites.X:0.#}  Y {f.Limites.Y:0.#}   {f.Limites.Comprimento:0.#} × {f.Limites.Largura:0.#} mm";
         }
         var ft = DesenhoChapa.Texto(texto, 13, cores.Texto, forte: true);
         DesenhoChapa.Etiqueta(ctx, texto, new Point(MargemEsquerda + ft.Width / 2 + 8, 18), cores.Fundo, cores.GradeForte, cores.Texto, 13);
@@ -708,6 +1001,7 @@ public class EditorChapaCanvas : Control
         public readonly IBrush BordaChapa = DesenhoChapa.Pincel(c, "SheetBorderBrush", Brushes.Gray);
         public readonly IBrush Marca = DesenhoChapa.Pincel(c, "BrandBrush", Brushes.OrangeRed);
         public readonly IBrush Destaque = DesenhoChapa.Pincel(c, "HighlightBrush", Brushes.Transparent);
+        public readonly IBrush Cota = DesenhoChapa.Pincel(c, "MeasureBrush", Brushes.RoyalBlue);
         public readonly IBrush Perigo = DesenhoChapa.Pincel(c, "DangerBrush", Brushes.Red);
         public readonly IBrush Sucesso = DesenhoChapa.Pincel(c, "SuccessBrush", Brushes.Green);
         public readonly IBrush Texto = DesenhoChapa.Pincel(c, "TextPrimaryBrush", Brushes.Black);

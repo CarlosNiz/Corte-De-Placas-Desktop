@@ -12,7 +12,8 @@ namespace CorteDePlacasDesktop.ViewModels;
 /// </summary>
 public partial class MainViewModel : ViewModelBase
 {
-    private const int MaximoDeToasts = 3;
+    /// <summary>Só o aviso mais recente aparece (ele fica no centro da barra superior).</summary>
+    private const int MaximoDeToasts = 1;
 
     public MainViewModel()
     {

@@ -31,6 +31,7 @@
                     <SolidColorBrush x:Key="OverlayBrush" Color="#661A1D21" />
                     <SolidColorBrush x:Key="GridMinorBrush" Color="#F0F1F3" />
                     <SolidColorBrush x:Key="HighlightBrush" Color="#1FC2410C" />
+                    <SolidColorBrush x:Key="MeasureBrush" Color="#1D4ED8" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="PageBackgroundBrush" Color="#16181C" />
@@ -51,6 +52,7 @@
                     <SolidColorBrush x:Key="OverlayBrush" Color="#99000000" />
                     <SolidColorBrush x:Key="GridMinorBrush" Color="#272A30" />
                     <SolidColorBrush x:Key="HighlightBrush" Color="#2EFB8A4C" />
+                    <SolidColorBrush x:Key="MeasureBrush" Color="#60A5FA" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>

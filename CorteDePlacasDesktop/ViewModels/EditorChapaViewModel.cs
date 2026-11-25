@@ -107,11 +107,11 @@ public partial class EditorChapaViewModel : ViewModelBase
                 ModoEditor.Desenhar =>
                     "Clique para marcar cada canto da chapa. Para fechar, clique no primeiro canto. Esc cancela.",
                 ModoEditor.Retangulo =>
-                    $"Clique e arraste para desenhar um retângulo que vai {efeito}.",
+                    $"Clique e arraste para desenhar um retângulo que vai {efeito}. As linhas tracejadas mostram quando ele está alinhado.",
                 ModoEditor.Circulo =>
-                    $"Clique no centro e arraste para o lado para desenhar um círculo que vai {efeito}.",
+                    $"Clique no centro e arraste para o lado para desenhar um círculo que vai {efeito}. Em azul, a distância até a borda.",
                 _ =>
-                    "Arraste cantos e formas para mudar a placa. Clique numa borda para criar um canto novo.",
+                    "Arraste cantos e formas; clique numa borda para criar um canto. Tracejado = alinhado ou centralizado; azul = distância até a borda; Alt = sem grudar.",
             };
         }
     }
