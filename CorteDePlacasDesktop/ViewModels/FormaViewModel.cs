@@ -13,14 +13,21 @@ public partial class FormaViewModel : ViewModelBase
 {
     private readonly Action<FormaViewModel> _remover;
 
-    public FormaViewModel(FormaChapa forma, Action<FormaViewModel> remover)
+    /// <param name="nomeDoAlvo">"chapa" ou "peça", para os textos dos botões.</param>
+    public FormaViewModel(FormaChapa forma, Action<FormaViewModel> remover, string nomeDoAlvo)
     {
         Tipo = forma.Tipo;
         _remover = remover;
+        TextoTira = $"− Tira da {nomeDoAlvo}";
+        TextoSoma = $"+ Soma à {nomeDoAlvo}";
         Definir(forma);
     }
 
     public TipoForma Tipo { get; }
+
+    public string TextoTira { get; }
+
+    public string TextoSoma { get; }
 
     public bool EhCirculo => Tipo == TipoForma.Circulo;
 

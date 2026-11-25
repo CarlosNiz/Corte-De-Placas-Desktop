@@ -27,27 +27,44 @@ public enum ModoEditor
 }
 
 /// <summary>
-/// Tela onde o operador desenha a placa com o mouse: o contorno (cantos) e retângulos
-/// e círculos que tiram ou somam área.
+/// O que está sendo desenhado no editor: a chapa ou uma peça.
 /// </summary>
-public partial class EditorChapaViewModel : ViewModelBase
+/// <param name="Titulo">Título da tela (ex.: "Formato da peça 2 · Lateral").</param>
+/// <param name="Nome">"chapa" ou "peça" — usado nos textos ("Tirar da peça").</param>
+/// <param name="PermiteVariasPartes">Se pode ficar dividida em pedaços separados (a chapa pode; a peça, não).</param>
+/// <param name="FormatoInicial">Formato com que o editor abre.</param>
+/// <param name="PaginaDeVolta">Tela para onde voltar ao concluir ou cancelar.</param>
+/// <param name="AoConcluir">Recebe o formato pronto (já começando em 0,0).</param>
+public sealed record AlvoDoEditor(
+    string Titulo,
+    string Nome,
+    bool PermiteVariasPartes,
+    FormatoChapa FormatoInicial,
+    ViewModelBase PaginaDeVolta,
+    Action<FormatoChapa> AoConcluir);
+
+/// <summary>
+/// Tela onde o operador desenha um formato com o mouse (a chapa ou uma peça): o contorno (cantos)
+/// e retângulos e círculos que tiram ou somam área.
+/// </summary>
+public partial class EditorFormatoViewModel : ViewModelBase
 {
     private readonly MainViewModel _janela;
-    private readonly NovoPlanoViewModel _plano;
+    private readonly AlvoDoEditor _alvo;
     private List<Ponto>? _contornoAntesDoDesenho;
     private bool _alterado;
     private bool _carregando;
 
-    public EditorChapaViewModel(MainViewModel janela, NovoPlanoViewModel plano)
+    public EditorFormatoViewModel(MainViewModel janela, AlvoDoEditor alvo)
     {
         _janela = janela;
-        _plano = plano;
+        _alvo = alvo;
 
         Cantos.CollectionChanged += OnColecaoChanged;
         Formas.CollectionChanged += OnColecaoChanged;
 
         _carregando = true;
-        var formato = plano.Formato;
+        var formato = alvo.FormatoInicial;
         foreach (var p in formato.Contorno)
             Cantos.Add(NovoCanto(p));
         foreach (var f in formato.Formas)
@@ -69,7 +86,16 @@ public partial class EditorChapaViewModel : ViewModelBase
     /// <summary>Formato atual, ou null enquanto algum campo está vazio ou o contorno não foi fechado.</summary>
     public FormatoChapa? Formato { get; private set; }
 
-    public override bool TemDadosNaoSalvos => _alterado || _plano.TemDadosNaoSalvos;
+    public override bool TemDadosNaoSalvos => _alterado || _alvo.PaginaDeVolta.TemDadosNaoSalvos;
+
+    public string Titulo => _alvo.Titulo;
+
+    /// <summary>"chapa" ou "peça".</summary>
+    public string Nome => _alvo.Nome;
+
+    public string TextoTirar => $"− Tirar da {Nome}";
+
+    public string TextoSomar => $"+ Somar à {Nome}";
 
     // ---- Modo ----
 
@@ -101,11 +127,11 @@ public partial class EditorChapaViewModel : ViewModelBase
     {
         get
         {
-            var efeito = NovaFormaRemove ? "tirar da placa" : "somar à placa";
+            var efeito = NovaFormaRemove ? $"tirar da {Nome}" : $"somar à {Nome}";
             return Modo switch
             {
                 ModoEditor.Desenhar =>
-                    "Clique para marcar cada canto da chapa. Para fechar, clique no primeiro canto. Esc cancela.",
+                    $"Clique para marcar cada canto da {Nome}. Para fechar, clique no primeiro canto. Esc cancela.",
                 ModoEditor.Retangulo =>
                     $"Clique e arraste para desenhar um retângulo que vai {efeito}. As linhas tracejadas mostram quando ele está alinhado.",
                 ModoEditor.Circulo =>
@@ -255,7 +281,7 @@ public partial class EditorChapaViewModel : ViewModelBase
         Formas.Add(nova);
         Modo = ModoEditor.Ajustar;
         SelecionarForma(nova);
-        var efeito = forma.Operacao == OperacaoForma.Remover ? "tira da placa" : "soma à placa";
+        var efeito = forma.Operacao == OperacaoForma.Remover ? $"tira da {Nome}" : $"soma à {Nome}";
         _janela.MostrarToast($"{nova.Titulo} criado ({efeito}).");
     }
 
@@ -367,9 +393,9 @@ public partial class EditorChapaViewModel : ViewModelBase
     {
         if (Formato is null)
             return;
-        _plano.DefinirFormato(Formato.Normalizado());
-        _janela.Mostrar(_plano);
-        _janela.MostrarToast("Formato da chapa atualizado.");
+        _alvo.AoConcluir(Formato.Normalizado());
+        _janela.Mostrar(_alvo.PaginaDeVolta);
+        _janela.MostrarToast($"Formato da {Nome} atualizado.");
     }
 
     [RelayCommand]
@@ -379,12 +405,12 @@ public partial class EditorChapaViewModel : ViewModelBase
         {
             var descartar = await _janela.ConfirmarAsync(
                 "Descartar o desenho?",
-                "O formato da chapa vai voltar a ser como estava antes.",
+                $"O formato da {Nome} vai voltar a ser como estava antes.",
                 "Descartar desenho");
             if (!descartar)
                 return;
         }
-        _janela.Mostrar(_plano);
+        _janela.Mostrar(_alvo.PaginaDeVolta);
     }
 
     protected override void OnPropertyChanged(PropertyChangedEventArgs e)
@@ -403,7 +429,7 @@ public partial class EditorChapaViewModel : ViewModelBase
 
     private FormaViewModel NovaForma(FormaChapa f)
     {
-        var forma = new FormaViewModel(f, RemoverForma);
+        var forma = new FormaViewModel(f, RemoverForma, Nome);
         forma.PropertyChanged += OnItemChanged;
         return forma;
     }
@@ -445,7 +471,10 @@ public partial class EditorChapaViewModel : ViewModelBase
         else if (!completos)
             Erro = "Preencha as medidas de todos os cantos e formas.";
         else
-            Erro = Formato!.Validar();
+            Erro = Formato!.Validar()
+                   ?? (Formato.Partes > 1 && !_alvo.PermiteVariasPartes
+                       ? $"A {Nome} ficou dividida em partes separadas."
+                       : null);
 
         var partes = new List<string>
         {

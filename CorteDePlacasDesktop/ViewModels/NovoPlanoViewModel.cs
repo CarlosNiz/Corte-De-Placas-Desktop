@@ -30,9 +30,6 @@ public partial class NovoPlanoViewModel : ViewModelBase
 
     // ---- Chapa ----
 
-    [ObservableProperty]
-    public partial string Material { get; set; } = "";
-
     /// <summary>Formato da chapa: um retângulo ou um contorno desenhado, com retângulos e círculos que tiram ou somam área.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(EhFormatoPersonalizado), nameof(DescricaoFormato), nameof(MedidasFormato))]
@@ -78,7 +75,35 @@ public partial class NovoPlanoViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void DesenharFormato() => _janela.Mostrar(new EditorChapaViewModel(_janela, this));
+    private void DesenharFormato() =>
+        _janela.Mostrar(new EditorFormatoViewModel(_janela, new AlvoDoEditor(
+            Titulo: "Formato da chapa",
+            Nome: "chapa",
+            PermiteVariasPartes: true,
+            FormatoInicial: Formato,
+            PaginaDeVolta: this,
+            AoConcluir: DefinirFormato)));
+
+    /// <summary>Abre o editor para desenhar o formato de uma peça.</summary>
+    private void DesenharPeca(PecaViewModel peca)
+    {
+        // Começa do desenho atual; se a peça ainda é retângulo, das medidas dela (ou de um tamanho padrão).
+        var inicial = peca.Formato
+                      ?? (peca.Comprimento > 0 && peca.Largura > 0
+                          ? FormatoChapa.RetanguloSimples((double)peca.Comprimento, (double)peca.Largura)
+                          : FormatoChapa.RetanguloSimples(600, 400));
+        var titulo = string.IsNullOrWhiteSpace(peca.Descricao)
+            ? $"Formato da peça {peca.Numero}"
+            : $"Formato da peça {peca.Numero} · {peca.Descricao.Trim()}";
+
+        _janela.Mostrar(new EditorFormatoViewModel(_janela, new AlvoDoEditor(
+            Titulo: titulo,
+            Nome: "peça",
+            PermiteVariasPartes: false,
+            FormatoInicial: inicial,
+            PaginaDeVolta: this,
+            AoConcluir: peca.DefinirFormato)));
+    }
 
     [RelayCommand]
     private void UsarRetangulo()
@@ -120,7 +145,7 @@ public partial class NovoPlanoViewModel : ViewModelBase
     [NotifyCanExecuteChangedFor(nameof(CalcularCommand))]
     public partial bool PodeCalcular { get; set; }
 
-    private PecaViewModel NovaPeca() => new(RemoverPeca);
+    private PecaViewModel NovaPeca() => new(RemoverPeca, DesenharPeca);
 
     [RelayCommand]
     private void AdicionarPeca()
@@ -232,7 +257,7 @@ public partial class NovoPlanoViewModel : ViewModelBase
         var incompletas = 0;
         var naoCabem = 0;
         var totalPecas = 0;
-        var areaTotal = 0m;
+        var areaTotal = 0.0;
 
         foreach (var peca in Pecas)
         {
@@ -245,30 +270,30 @@ public partial class NovoPlanoViewModel : ViewModelBase
                 continue;
             }
 
-            var c = peca.Comprimento!.Value;
-            var l = peca.Largura!.Value;
+            var c = (double)peca.Comprimento!.Value;
+            var l = (double)peca.Largura!.Value;
             var q = (int)peca.Quantidade!.Value;
             totalPecas += q;
-            areaTotal += c * l * q;
+            areaTotal += peca.AreaUnitaria * q;
 
             if (erroChapa is not null)
                 continue;
 
-            var cabe = Formato.Cabe((double)c, (double)l, refilo)
-                       || (peca.PodeGirar && Formato.Cabe((double)l, (double)c, refilo));
+            // A peça pode ser girada 90°. Peça desenhada: por enquanto a checagem usa o
+            // retângulo que a envolve (pode recusar encaixes muito justos).
+            var cabe = Formato.Cabe(c, l, refilo) || Formato.Cabe(l, c, refilo);
             if (!cabe)
             {
                 naoCabem++;
-                var semGirar = peca.PodeGirar ? "" : " sem girar";
                 peca.Aviso = EhFormatoPersonalizado
-                    ? $"Não cabe em nenhuma parte da chapa{semGirar} (descontando o refilo)."
-                    : $"Não cabe na área útil da chapa ({utilComprimento:0.#} × {utilLargura:0.#} mm){semGirar}.";
+                    ? "Não cabe em nenhuma parte da chapa, nem girando (descontando o refilo)."
+                    : $"Não cabe na área útil da chapa ({utilComprimento:0.#} × {utilLargura:0.#} mm), nem girando.";
             }
         }
 
         Resumo = totalPecas == 0
             ? "Nenhuma peça informada"
-            : $"{totalPecas} {(totalPecas == 1 ? "peça" : "peças")} · {areaTotal / 1_000_000m:0.00} m²";
+            : $"{totalPecas} {(totalPecas == 1 ? "peça" : "peças")} · {areaTotal / 1_000_000:0.00} m²";
 
         if (erroChapa is not null)
             (MensagemValidacao, MensagemEhErro) = (erroChapa, true);

@@ -13,12 +13,12 @@ namespace CorteDePlacasDesktop.Controls;
 /// <summary>
 /// Área de desenho da placa: grade com medidas, contorno com cantos que se arrastam,
 /// e retângulos/círculos que tiram ou somam área. A lógica (o que muda) fica no
-/// <see cref="EditorChapaViewModel"/>; aqui fica só o desenho e a tradução do mouse para milímetros.
+/// <see cref="EditorFormatoViewModel"/>; aqui fica só o desenho e a tradução do mouse para milímetros.
 /// </summary>
-public class EditorChapaCanvas : Control
+public class EditorFormatoCanvas : Control
 {
-    public static readonly StyledProperty<EditorChapaViewModel?> EditorProperty =
-        AvaloniaProperty.Register<EditorChapaCanvas, EditorChapaViewModel?>(nameof(Editor));
+    public static readonly StyledProperty<EditorFormatoViewModel?> EditorProperty =
+        AvaloniaProperty.Register<EditorFormatoCanvas, EditorFormatoViewModel?>(nameof(Editor));
 
     // Espaço em volta do desenho para as medidas da grade (px)
     private const double MargemEsquerda = 56;
@@ -66,19 +66,19 @@ public class EditorChapaCanvas : Control
     private static Cursor? _cursorCruz;
     private static Cursor? _cursorMover;
 
-    static EditorChapaCanvas()
+    static EditorFormatoCanvas()
     {
-        FocusableProperty.OverrideDefaultValue<EditorChapaCanvas>(true);
-        ClipToBoundsProperty.OverrideDefaultValue<EditorChapaCanvas>(true);
-        AffectsRender<EditorChapaCanvas>(EditorProperty);
+        FocusableProperty.OverrideDefaultValue<EditorFormatoCanvas>(true);
+        ClipToBoundsProperty.OverrideDefaultValue<EditorFormatoCanvas>(true);
+        AffectsRender<EditorFormatoCanvas>(EditorProperty);
     }
 
-    public EditorChapaCanvas()
+    public EditorFormatoCanvas()
     {
         ActualThemeVariantChanged += (_, _) => InvalidateVisual();
     }
 
-    public EditorChapaViewModel? Editor
+    public EditorFormatoViewModel? Editor
     {
         get => GetValue(EditorProperty);
         set => SetValue(EditorProperty, value);
@@ -89,9 +89,9 @@ public class EditorChapaCanvas : Control
         base.OnPropertyChanged(change);
         if (change.Property == EditorProperty)
         {
-            if (change.OldValue is EditorChapaViewModel antigo)
+            if (change.OldValue is EditorFormatoViewModel antigo)
                 antigo.Alterado -= InvalidateVisual;
-            if (change.NewValue is EditorChapaViewModel novo)
+            if (change.NewValue is EditorFormatoViewModel novo)
                 novo.Alterado += InvalidateVisual;
         }
     }
@@ -108,7 +108,7 @@ public class EditorChapaCanvas : Control
 
     private static double NaGrade(double valor) => Math.Round(valor / PassoGrade) * PassoGrade;
 
-    private void AtualizarTransformacao(EditorChapaViewModel editor)
+    private void AtualizarTransformacao(EditorFormatoViewModel editor)
     {
         // Enquanto o operador arrasta ou desenha, a escala fica parada para o desenho não "fugir" do mouse.
         if (!_mundoTravado && !editor.EmDesenho)
@@ -208,7 +208,7 @@ public class EditorChapaCanvas : Control
     /// Linhas de centralização para algo centrado em <paramref name="centro"/>: o centro da placa
     /// e o meio entre as bordas da placa naquela altura (horizontal) e naquela posição (vertical).
     /// </summary>
-    private static (List<(double Valor, string Rotulo)> Xs, List<(double Valor, string Rotulo)> Ys) Centros(
+    private (List<(double Valor, string Rotulo)> Xs, List<(double Valor, string Rotulo)> Ys) Centros(
         Ponto centro, IReadOnlyList<IReadOnlyList<Ponto>>? regiao)
     {
         var xs = new List<(double, string)>();
@@ -217,8 +217,8 @@ public class EditorChapaCanvas : Control
             return (xs, ys);
 
         var limites = Geometria.Limites(regiao.SelectMany(p => p));
-        xs.Add((limites.Centro.X, "Centro da placa"));
-        ys.Add((limites.Centro.Y, "Centro da placa"));
+        xs.Add((limites.Centro.X, $"Centro da {Editor?.Nome ?? "chapa"}"));
+        ys.Add((limites.Centro.Y, $"Centro da {Editor?.Nome ?? "chapa"}"));
 
         if (Geometria.PontoDentroRegiao(regiao, centro))
         {
@@ -319,7 +319,7 @@ public class EditorChapaCanvas : Control
     /// Forma que está sendo criada com o mouse (do clique até a posição atual).
     /// O retângulo gruda os cantos nas referências; o círculo ajusta o raio para encostar numa referência.
     /// </summary>
-    private FormaChapa? CalcularNovaForma(EditorChapaViewModel editor, Point tela)
+    private FormaChapa? CalcularNovaForma(EditorFormatoViewModel editor, Point tela)
     {
         if (_inicioNovaForma is not Ponto inicio)
             return null;
@@ -368,7 +368,7 @@ public class EditorChapaCanvas : Control
     /// <summary>
     /// A placa sem uma das formas (para medir a distância da forma até a borda sem que ela atrapalhe).
     /// </summary>
-    private static IReadOnlyList<IReadOnlyList<Ponto>>? RegiaoSem(EditorChapaViewModel editor, FormaViewModel? sem)
+    private static IReadOnlyList<IReadOnlyList<Ponto>>? RegiaoSem(EditorFormatoViewModel editor, FormaViewModel? sem)
     {
         if (editor.EmDesenho || editor.Cantos.Count < 3 || editor.Cantos.Any(c => !c.EstaCompleto)
             || editor.Formas.Any(f => !f.EstaCompleta))
@@ -659,7 +659,7 @@ public class EditorChapaCanvas : Control
 
     public override void Render(DrawingContext ctx)
     {
-        var fundo = DesenhoChapa.Pincel(this, "SurfaceBrush", Brushes.White);
+        var fundo = DesenhoFormato.Pincel(this, "SurfaceBrush", Brushes.White);
         ctx.DrawRectangle(fundo, null, new Rect(Bounds.Size));
 
         var editor = Editor;
@@ -683,13 +683,13 @@ public class EditorChapaCanvas : Control
         {
             // A placa de verdade: contorno + formas que somam − formas que tiram
             var regiao = formato.Regiao.Select(c => (IReadOnlyList<Point>)c.Select(ParaTela).ToList()).ToList();
-            ctx.DrawGeometry(cores.Chapa, new Pen(cores.BordaChapa, 2.5, lineJoin: PenLineJoin.Round), DesenhoChapa.Regiao(regiao));
+            ctx.DrawGeometry(cores.Chapa, new Pen(cores.BordaChapa, 2.5, lineJoin: PenLineJoin.Round), DesenhoFormato.Regiao(regiao));
             if (temFormas && pontos.Count >= 3)
-                ctx.DrawGeometry(null, new Pen(cores.BordaChapa, 1, new DashStyle([5, 4], 0)), DesenhoChapa.Poligono(pontos));
+                ctx.DrawGeometry(null, new Pen(cores.BordaChapa, 1, new DashStyle([5, 4], 0)), DesenhoFormato.Poligono(pontos));
         }
         else if (pontos.Count >= 3)
         {
-            ctx.DrawGeometry(cores.Chapa, new Pen(cores.BordaChapa, 2.5, lineJoin: PenLineJoin.Round), DesenhoChapa.Poligono(pontos));
+            ctx.DrawGeometry(cores.Chapa, new Pen(cores.BordaChapa, 2.5, lineJoin: PenLineJoin.Round), DesenhoFormato.Poligono(pontos));
         }
 
         foreach (var forma in editor.Formas.Where(f => f.EstaCompleta))
@@ -712,7 +712,7 @@ public class EditorChapaCanvas : Control
     /// borda da placa mais próxima, na horizontal e na vertical. No círculo, a medida sai do centro
     /// (é assim que se marca um furo).
     /// </summary>
-    private void DesenharCotasDaForma(DrawingContext ctx, Cores cores, EditorChapaViewModel editor)
+    private void DesenharCotasDaForma(DrawingContext ctx, Cores cores, EditorFormatoViewModel editor)
     {
         FormaChapa forma;
         IReadOnlyList<IReadOnlyList<Ponto>>? regiao;
@@ -779,7 +779,7 @@ public class EditorChapaCanvas : Control
         ctx.DrawLine(pen, new Point(b.X - tx, b.Y - ty), new Point(b.X + tx, b.Y + ty));
 
         var meio = new Point((a.X + b.X) / 2, (a.Y + b.Y) / 2);
-        DesenhoChapa.Etiqueta(ctx, $"{valor:0.#}", meio, cores.Fundo, cores.Cota, cores.Cota, 13);
+        DesenhoFormato.Etiqueta(ctx, $"{valor:0.#}", meio, cores.Fundo, cores.Cota, cores.Cota, 13);
     }
 
     private void DesenharGrade(DrawingContext ctx, Cores cores)
@@ -812,17 +812,17 @@ public class EditorChapaCanvas : Control
         // Medidas da grade (em mm) embaixo e à esquerda
         for (var x = Math.Ceiling(cantoSupEsq.X / maior) * maior; x <= cantoInfDir.X; x += maior)
         {
-            var ft = DesenhoChapa.Texto($"{SemMenosZero(x):0}", 11, cores.TextoFraco);
+            var ft = DesenhoFormato.Texto($"{SemMenosZero(x):0}", 11, cores.TextoFraco);
             var sx = ParaTela(new Ponto(x, 0)).X;
             ctx.DrawText(ft, new Point(sx - ft.Width / 2, area.Bottom + 8));
         }
         for (var y = Math.Ceiling(cantoInfDir.Y / maior) * maior; y <= cantoSupEsq.Y; y += maior)
         {
-            var ft = DesenhoChapa.Texto($"{SemMenosZero(y):0}", 11, cores.TextoFraco);
+            var ft = DesenhoFormato.Texto($"{SemMenosZero(y):0}", 11, cores.TextoFraco);
             var sy = ParaTela(new Ponto(0, y)).Y;
             ctx.DrawText(ft, new Point(area.Left - ft.Width - 8, sy - ft.Height / 2));
         }
-        var unidade = DesenhoChapa.Texto("mm", 11, cores.TextoFraco);
+        var unidade = DesenhoFormato.Texto("mm", 11, cores.TextoFraco);
         ctx.DrawText(unidade, new Point(area.Left - unidade.Width - 8, area.Bottom + 8));
     }
 
@@ -834,7 +834,7 @@ public class EditorChapaCanvas : Control
     private void DesenharContornoEmAndamento(DrawingContext ctx, Cores cores, List<Point> pontos)
     {
         if (pontos.Count >= 2)
-            ctx.DrawGeometry(null, new Pen(cores.Marca, 2.5, lineJoin: PenLineJoin.Round), DesenhoChapa.Poligono(pontos, fechado: false));
+            ctx.DrawGeometry(null, new Pen(cores.Marca, 2.5, lineJoin: PenLineJoin.Round), DesenhoFormato.Poligono(pontos, fechado: false));
 
         if (pontos.Count >= 1 && _mouse is Ponto mouse)
         {
@@ -860,16 +860,16 @@ public class EditorChapaCanvas : Control
             ? $"Ø {forma.Diametro:0.#}"
             : $"{forma.Limites.Comprimento:0.#} × {forma.Limites.Largura:0.#}";
         var rotulo = sinal is null ? medida : $"{sinal}{numero}  {medida}";
-        var ft = DesenhoChapa.Texto(rotulo, 12, cor, forte: true);
+        var ft = DesenhoFormato.Texto(rotulo, 12, cor, forte: true);
         if (ft.Width + 16 < tela.Width && ft.Height + 8 < tela.Height)
         {
-            DesenhoChapa.Etiqueta(ctx, rotulo, tela.Center, cores.Fundo, cor, cor);
+            DesenhoFormato.Etiqueta(ctx, rotulo, tela.Center, cores.Fundo, cor, cor);
         }
         else if (sinal is not null)
         {
             // Forma pequena: só o número, do lado de fora
             var curto = $"{sinal}{numero}";
-            DesenhoChapa.Etiqueta(ctx, curto, new Point(tela.Right + 14, tela.Top - 8), cores.Fundo, cor, cor);
+            DesenhoFormato.Etiqueta(ctx, curto, new Point(tela.Right + 14, tela.Top - 8), cores.Fundo, cor, cor);
         }
     }
 
@@ -887,7 +887,7 @@ public class EditorChapaCanvas : Control
             var normal = NormalParaFora(poligonoTela, a, b);
             var meio = new Point((a.X + b.X) / 2 + normal.X * 16, (a.Y + b.Y) / 2 + normal.Y * 16);
             var medida = Geometria.Distancia(cantos[i].Ponto, cantos[(i + 1) % cantos.Count].Ponto);
-            DesenhoChapa.Etiqueta(ctx, $"{medida:0.#}", meio, cores.Fundo, cores.GradeForte, cores.Texto);
+            DesenhoFormato.Etiqueta(ctx, $"{medida:0.#}", meio, cores.Fundo, cores.GradeForte, cores.Texto);
         }
     }
 
@@ -916,7 +916,7 @@ public class EditorChapaCanvas : Control
             ctx.DrawLine(_rotuloGuiaX is null ? alinhamento : centralizacao,
                 new Point(x, MargemSuperior), new Point(x, Bounds.Height - MargemInferior));
             if (_rotuloGuiaX is { } rotulo)
-                DesenhoChapa.Etiqueta(ctx, rotulo, new Point(x, MargemSuperior + 14), cores.Marca, cores.Marca, cores.Fundo, 13);
+                DesenhoFormato.Etiqueta(ctx, rotulo, new Point(x, MargemSuperior + 14), cores.Marca, cores.Marca, cores.Fundo, 13);
         }
         if (_guiaY is double gy)
         {
@@ -925,14 +925,14 @@ public class EditorChapaCanvas : Control
                 new Point(MargemEsquerda, y), new Point(Bounds.Width - MargemDireita, y));
             if (_rotuloGuiaY is { } rotulo)
             {
-                var largura = DesenhoChapa.Texto(rotulo, 13, cores.Fundo, forte: true).Width;
-                DesenhoChapa.Etiqueta(ctx, rotulo, new Point(Bounds.Width - MargemDireita - largura / 2 - 10, y),
+                var largura = DesenhoFormato.Texto(rotulo, 13, cores.Fundo, forte: true).Width;
+                DesenhoFormato.Etiqueta(ctx, rotulo, new Point(Bounds.Width - MargemDireita - largura / 2 - 10, y),
                     cores.Marca, cores.Marca, cores.Fundo, 13);
             }
         }
     }
 
-    private void DesenharCantos(DrawingContext ctx, Cores cores, EditorChapaViewModel editor,
+    private void DesenharCantos(DrawingContext ctx, Cores cores, EditorFormatoViewModel editor,
         List<CantoViewModel> cantos, List<Point> pontos)
     {
         var poligonoTela = pontos.Select(p => new Ponto(p.X, p.Y)).ToList();
@@ -962,22 +962,22 @@ public class EditorChapaCanvas : Control
                 var dir = new Point(n1.X + n2.X, n1.Y + n2.Y);
                 var tamanho = Math.Sqrt(dir.X * dir.X + dir.Y * dir.Y);
                 dir = tamanho < 1e-6 ? n1 : new Point(dir.X / tamanho, dir.Y / tamanho);
-                var ft = DesenhoChapa.Texto($"{canto.Numero}", 12, cores.Marca, forte: true);
+                var ft = DesenhoFormato.Texto($"{canto.Numero}", 12, cores.Marca, forte: true);
                 ctx.DrawText(ft, new Point(centro.X + dir.X * 22 - ft.Width / 2, centro.Y + dir.Y * 22 - ft.Height / 2));
             }
             else if (editor.EmDesenho)
             {
-                var ft = DesenhoChapa.Texto($"{canto.Numero}", 12, cores.Marca, forte: true);
+                var ft = DesenhoFormato.Texto($"{canto.Numero}", 12, cores.Marca, forte: true);
                 ctx.DrawText(ft, new Point(centro.X + 12, centro.Y - ft.Height - 6));
             }
         }
 
         if (editor.EmDesenho && _sobrePrimeiroCanto && pontos.Count > 0)
-            DesenhoChapa.Etiqueta(ctx, "Fechar contorno", new Point(pontos[0].X, pontos[0].Y - 34),
+            DesenhoFormato.Etiqueta(ctx, "Fechar contorno", new Point(pontos[0].X, pontos[0].Y - 34),
                 cores.Marca, cores.Marca, cores.Fundo, 13);
     }
 
-    private void DesenharPosicaoDoMouse(DrawingContext ctx, Cores cores, EditorChapaViewModel editor)
+    private void DesenharPosicaoDoMouse(DrawingContext ctx, Cores cores, EditorFormatoViewModel editor)
     {
         if (_mouse is not Ponto p)
             return;
@@ -989,24 +989,24 @@ public class EditorChapaCanvas : Control
                 ? $"Centro X {f.Centro.X:0.#}  Y {f.Centro.Y:0.#}   Ø {f.Diametro:0.#} mm"
                 : $"X {f.Limites.X:0.#}  Y {f.Limites.Y:0.#}   {f.Limites.Comprimento:0.#} × {f.Limites.Largura:0.#} mm";
         }
-        var ft = DesenhoChapa.Texto(texto, 13, cores.Texto, forte: true);
-        DesenhoChapa.Etiqueta(ctx, texto, new Point(MargemEsquerda + ft.Width / 2 + 8, 18), cores.Fundo, cores.GradeForte, cores.Texto, 13);
+        var ft = DesenhoFormato.Texto(texto, 13, cores.Texto, forte: true);
+        DesenhoFormato.Etiqueta(ctx, texto, new Point(MargemEsquerda + ft.Width / 2 + 8, 18), cores.Fundo, cores.GradeForte, cores.Texto, 13);
     }
 
     /// <summary>Cores do tema atual, buscadas uma vez por desenho.</summary>
     private readonly struct Cores(Control c)
     {
-        public readonly IBrush Fundo = DesenhoChapa.Pincel(c, "SurfaceBrush", Brushes.White);
-        public readonly IBrush Chapa = DesenhoChapa.Pincel(c, "SheetBrush", Brushes.Beige);
-        public readonly IBrush BordaChapa = DesenhoChapa.Pincel(c, "SheetBorderBrush", Brushes.Gray);
-        public readonly IBrush Marca = DesenhoChapa.Pincel(c, "BrandBrush", Brushes.OrangeRed);
-        public readonly IBrush Destaque = DesenhoChapa.Pincel(c, "HighlightBrush", Brushes.Transparent);
-        public readonly IBrush Cota = DesenhoChapa.Pincel(c, "MeasureBrush", Brushes.RoyalBlue);
-        public readonly IBrush Perigo = DesenhoChapa.Pincel(c, "DangerBrush", Brushes.Red);
-        public readonly IBrush Sucesso = DesenhoChapa.Pincel(c, "SuccessBrush", Brushes.Green);
-        public readonly IBrush Texto = DesenhoChapa.Pincel(c, "TextPrimaryBrush", Brushes.Black);
-        public readonly IBrush TextoFraco = DesenhoChapa.Pincel(c, "TextSecondaryBrush", Brushes.Gray);
-        public readonly IBrush GradeFraca = DesenhoChapa.Pincel(c, "GridMinorBrush", Brushes.WhiteSmoke);
-        public readonly IBrush GradeForte = DesenhoChapa.Pincel(c, "SurfaceBorderBrush", Brushes.LightGray);
+        public readonly IBrush Fundo = DesenhoFormato.Pincel(c, "SurfaceBrush", Brushes.White);
+        public readonly IBrush Chapa = DesenhoFormato.Pincel(c, "SheetBrush", Brushes.Beige);
+        public readonly IBrush BordaChapa = DesenhoFormato.Pincel(c, "SheetBorderBrush", Brushes.Gray);
+        public readonly IBrush Marca = DesenhoFormato.Pincel(c, "BrandBrush", Brushes.OrangeRed);
+        public readonly IBrush Destaque = DesenhoFormato.Pincel(c, "HighlightBrush", Brushes.Transparent);
+        public readonly IBrush Cota = DesenhoFormato.Pincel(c, "MeasureBrush", Brushes.RoyalBlue);
+        public readonly IBrush Perigo = DesenhoFormato.Pincel(c, "DangerBrush", Brushes.Red);
+        public readonly IBrush Sucesso = DesenhoFormato.Pincel(c, "SuccessBrush", Brushes.Green);
+        public readonly IBrush Texto = DesenhoFormato.Pincel(c, "TextPrimaryBrush", Brushes.Black);
+        public readonly IBrush TextoFraco = DesenhoFormato.Pincel(c, "TextSecondaryBrush", Brushes.Gray);
+        public readonly IBrush GradeFraca = DesenhoFormato.Pincel(c, "GridMinorBrush", Brushes.WhiteSmoke);
+        public readonly IBrush GradeForte = DesenhoFormato.Pincel(c, "SurfaceBorderBrush", Brushes.LightGray);
     }
 }

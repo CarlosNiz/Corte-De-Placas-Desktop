@@ -7,7 +7,7 @@ using Avalonia.Media;
 namespace CorteDePlacasDesktop.Controls;
 
 /// <summary>Peças de desenho em comum entre o editor e a prévia da chapa.</summary>
-internal static class DesenhoChapa
+internal static class DesenhoFormato
 {
     private static readonly Typeface Fonte = new(FontFamily.Default);
     private static readonly Typeface FonteForte = new(FontFamily.Default, FontStyle.Normal, FontWeight.SemiBold);

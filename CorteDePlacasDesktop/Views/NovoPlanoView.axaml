@@ -61,10 +61,37 @@
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
         </Style>
 
+        <!-- Imagem da peça (clicável: abre o editor), como a prévia da chapa -->
+        <Style Selector="Button.desenho">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="4,4,8,4" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource BrandBrush}" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SurfaceBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+        <Style Selector="Button.desenho:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BrandBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource BrandBrush}" />
+        </Style>
+        <Style Selector="Border.imagem-peca">
+            <Setter Property="Height" Value="40" />
+            <Setter Property="CornerRadius" Value="5" />
+            <Setter Property="Background" Value="{DynamicResource PageBackgroundBrush}" />
+        </Style>
+
         <!-- Tabela de peças -->
         <Style Selector="TextBlock.column-header">
             <Setter Property="FontSize" Value="12" />
             <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="VerticalAlignment" Value="Bottom" />
             <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
         </Style>
         <Style Selector="TextBlock.row-number">
@@ -102,17 +129,12 @@
                     <StackPanel Spacing="12">
                         <TextBlock Classes="section-title" Text="Chapa" />
 
-                        <StackPanel>
-                            <TextBlock Classes="label" Text="Material (opcional)" />
-                            <TextBox Text="{Binding Material}" PlaceholderText="Ex.: MDF branco 18 mm" />
-                        </StackPanel>
-
                         <!-- Prévia do formato: clicar abre o editor -->
                         <Button Classes="formato"
                                 Command="{Binding DesenharFormatoCommand}"
                                 ToolTip.Tip="Abrir o editor para desenhar o formato da chapa">
                             <StackPanel Spacing="8">
-                                <controls:PreviaChapa Formato="{Binding Formato}" Height="104" />
+                                <controls:PreviaFormato Formato="{Binding Formato}" Height="104" />
                                 <TextBlock Text="{Binding DescricaoFormato}"
                                            FontSize="13"
                                            FontWeight="SemiBold"
@@ -213,17 +235,16 @@
 
                     <!-- Cabeçalho da tabela (mesmas colunas das linhas) -->
                     <Grid Grid.Row="1"
-                          ColumnDefinitions="28,*,128,128,76,52,36"
+                          ColumnDefinitions="28,164,*,108,100,60,36"
                           ColumnSpacing="8"
                           Margin="0,0,0,8">
                         <TextBlock Grid.Column="0" Classes="column-header" Text="#" />
-                        <TextBlock Grid.Column="1" Classes="column-header" Text="Descrição" />
-                        <TextBlock Grid.Column="2" Classes="column-header" Text="Comprimento (mm)" />
-                        <TextBlock Grid.Column="3" Classes="column-header" Text="Largura (mm)" />
-                        <TextBlock Grid.Column="4" Classes="column-header" Text="Qtd." />
-                        <TextBlock Grid.Column="5" Classes="column-header" Text="Girar"
-                                   HorizontalAlignment="Center"
-                                   ToolTip.Tip="Permite girar a peça 90° na chapa. Desmarque quando o veio precisa ser respeitado." />
+                        <TextBlock Grid.Column="1" Classes="column-header" Text="Formato"
+                                   ToolTip.Tip="Imagem da peça. Clique para desenhar peças que não são retângulos, como a chapa." />
+                        <TextBlock Grid.Column="2" Classes="column-header" Text="Descrição" />
+                        <TextBlock Grid.Column="3" Classes="column-header" Text="Comprimento (mm)" />
+                        <TextBlock Grid.Column="4" Classes="column-header" Text="Largura (mm)" />
+                        <TextBlock Grid.Column="5" Classes="column-header" Text="Qtd." />
                     </Grid>
 
                     <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
@@ -231,26 +252,68 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:PecaViewModel">
                                     <StackPanel Margin="0,0,0,8" Spacing="4">
-                                        <Grid ColumnDefinitions="28,*,128,128,76,52,36" ColumnSpacing="8">
+                                        <Grid ColumnDefinitions="28,164,*,108,100,60,36" ColumnSpacing="8">
                                             <TextBlock Grid.Column="0" Classes="row-number" Text="{Binding Numero}" />
-                                            <TextBox Grid.Column="1"
+
+                                            <!-- Espaço da imagem da peça (retângulo ou desenho) -->
+                                            <Button Grid.Column="1"
+                                                    Classes="desenho"
+                                                    Command="{Binding DesenharCommand}"
+                                                    ToolTip.Tip="Desenhar o formato desta peça">
+                                                <Grid ColumnDefinitions="60,*" ColumnSpacing="6">
+                                                    <Border Grid.Column="0" Classes="imagem-peca">
+                                                        <Panel>
+                                                            <controls:PreviaFormato Formato="{Binding FormatoPrevia}"
+                                                                                    Margem="4"
+                                                                                    Preenchimento="{DynamicResource BrandSoftBrush}"
+                                                                                    Borda="{DynamicResource BrandBrush}" />
+                                                            <TextBlock Text="sem medidas"
+                                                                       IsVisible="{Binding !TemPrevia}"
+                                                                       FontSize="10"
+                                                                       FontWeight="Normal"
+                                                                       LineHeight="12"
+                                                                       TextWrapping="Wrap"
+                                                                       TextAlignment="Center"
+                                                                       HorizontalAlignment="Center"
+                                                                       VerticalAlignment="Center"
+                                                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                        </Panel>
+                                                    </Border>
+                                                    <StackPanel Grid.Column="1"
+                                                                Orientation="Horizontal"
+                                                                Spacing="4"
+                                                                VerticalAlignment="Center">
+                                                        <PathIcon Width="11" Height="11"
+                                                                  Data="M0,10.9 V14 H3.1 L11,6.1 L7.9,3 Z M13.7,3.4 C14.1,3 14.1,2.4 13.7,2 L12,0.3 C11.6,-0.1 11,-0.1 10.6,0.3 L9.1,1.8 L12.2,4.9 Z" />
+                                                        <TextBlock Text="Desenhar"
+                                                                   IsVisible="{Binding EhRetangular}"
+                                                                   VerticalAlignment="Center" />
+                                                        <TextBlock Text="Editar"
+                                                                   IsVisible="{Binding EhDesenhada}"
+                                                                   VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Button>
+
+                                            <TextBox Grid.Column="2"
+                                                     VerticalAlignment="Center"
                                                      Text="{Binding Descricao}"
                                                      PlaceholderText="Ex.: Lateral" />
-                                            <NumericUpDown Grid.Column="2"
-                                                           Value="{Binding Comprimento}" />
+                                            <!-- Peça desenhada: as medidas vêm do desenho -->
                                             <NumericUpDown Grid.Column="3"
-                                                           Value="{Binding Largura}" />
+                                                           VerticalAlignment="Center"
+                                                           Value="{Binding Comprimento}"
+                                                           IsEnabled="{Binding EhRetangular}" />
                                             <NumericUpDown Grid.Column="4"
+                                                           VerticalAlignment="Center"
+                                                           Value="{Binding Largura}"
+                                                           IsEnabled="{Binding EhRetangular}" />
+                                            <NumericUpDown Grid.Column="5"
+                                                           VerticalAlignment="Center"
                                                            Value="{Binding Quantidade}"
                                                            Minimum="1"
                                                            FormatString="0"
                                                            ParsingNumberStyle="Integer" />
-                                            <CheckBox Grid.Column="5"
-                                                      IsChecked="{Binding PodeGirar}"
-                                                      MinWidth="0"
-                                                      Padding="0"
-                                                      HorizontalAlignment="Center"
-                                                      ToolTip.Tip="Permite girar a peça 90° na chapa" />
                                             <Button Grid.Column="6"
                                                     Classes="subtle"
                                                     Padding="10"

@@ -5,22 +5,22 @@ using CorteDePlacasDesktop.ViewModels;
 
 namespace CorteDePlacasDesktop.Views;
 
-public partial class EditorChapaView : UserControl
+public partial class EditorFormatoView : UserControl
 {
-    public EditorChapaView()
+    public EditorFormatoView()
     {
         InitializeComponent();
 
         // Ao clicar nos campos de um canto ou forma no painel, ele fica destacado no desenho.
         ListaCantos.AddHandler(GotFocusEvent, (_, e) =>
         {
-            if (e.Source is Control { DataContext: CantoViewModel canto } && DataContext is EditorChapaViewModel editor)
+            if (e.Source is Control { DataContext: CantoViewModel canto } && DataContext is EditorFormatoViewModel editor)
                 editor.SelecionarCanto(canto);
         }, RoutingStrategies.Bubble);
 
         ListaFormas.AddHandler(GotFocusEvent, (_, e) =>
         {
-            if (e.Source is Control { DataContext: FormaViewModel forma } && DataContext is EditorChapaViewModel editor)
+            if (e.Source is Control { DataContext: FormaViewModel forma } && DataContext is EditorFormatoViewModel editor)
                 editor.SelecionarForma(forma);
         }, RoutingStrategies.Bubble);
     }
