@@ -31,8 +31,8 @@ public partial class NovoPlanoView : UserControl
     }
 
     /// <summary>
-    /// Ao adicionar uma peça, leva o cursor para a descrição da nova linha
-    /// para o operador continuar digitando.
+    /// Ao adicionar uma peça, leva o cursor para o primeiro campo da nova linha (o comprimento)
+    /// para o operador continuar digitando: Tab segue para largura, quantidade e descrição.
     /// </summary>
     private void OnPecasChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
@@ -46,7 +46,7 @@ public partial class NovoPlanoView : UserControl
             if (linha is null)
                 return;
             linha.BringIntoView();
-            linha.GetVisualDescendants().OfType<TextBox>().FirstOrDefault()?.Focus();
+            linha.GetVisualDescendants().OfType<TextBox>().FirstOrDefault(t => t.IsEffectivelyEnabled)?.Focus();
         }, DispatcherPriority.Loaded);
     }
 }

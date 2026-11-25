@@ -66,7 +66,7 @@
             <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="VerticalAlignment" Value="Stretch" />
-            <Setter Property="Padding" Value="4,4,8,4" />
+            <Setter Property="Padding" Value="6" />
             <Setter Property="FontSize" Value="13" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Foreground" Value="{DynamicResource BrandBrush}" />
@@ -81,9 +81,24 @@
             <Setter Property="Foreground" Value="{DynamicResource BrandBrush}" />
         </Style>
         <Style Selector="Border.imagem-peca">
-            <Setter Property="Height" Value="40" />
             <Setter Property="CornerRadius" Value="5" />
             <Setter Property="Background" Value="{DynamicResource PageBackgroundBrush}" />
+        </Style>
+
+        <!-- Cada peça da lista: linha alta, com campos maiores e separador embaixo -->
+        <Style Selector="Border.linha-peca">
+            <Setter Property="Padding" Value="0,10" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SurfaceBorderBrush}" />
+        </Style>
+        <Style Selector="Border.linha-peca NumericUpDown">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="MinHeight" Value="38" />
+        </Style>
+        <Style Selector="Border.linha-peca TextBox">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="MinHeight" Value="38" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
 
         <!-- Tabela de peças -->
@@ -233,102 +248,106 @@
                         </Button>
                     </Grid>
 
-                    <!-- Cabeçalho da tabela (mesmas colunas das linhas) -->
+                    <!-- Cabeçalho (mesmas colunas da linha de cima de cada peça) -->
                     <Grid Grid.Row="1"
-                          ColumnDefinitions="28,164,*,108,100,60,36"
-                          ColumnSpacing="8"
-                          Margin="0,0,0,8">
+                          ColumnDefinitions="28,176,*,*,84,36"
+                          ColumnSpacing="10"
+                          Margin="0,0,0,4">
                         <TextBlock Grid.Column="0" Classes="column-header" Text="#" />
                         <TextBlock Grid.Column="1" Classes="column-header" Text="Formato"
                                    ToolTip.Tip="Imagem da peça. Clique para desenhar peças que não são retângulos, como a chapa." />
-                        <TextBlock Grid.Column="2" Classes="column-header" Text="Descrição" />
-                        <TextBlock Grid.Column="3" Classes="column-header" Text="Comprimento (mm)" />
-                        <TextBlock Grid.Column="4" Classes="column-header" Text="Largura (mm)" />
-                        <TextBlock Grid.Column="5" Classes="column-header" Text="Qtd." />
+                        <TextBlock Grid.Column="2" Classes="column-header" Text="Comprimento (mm)" />
+                        <TextBlock Grid.Column="3" Classes="column-header" Text="Largura (mm)" />
+                        <TextBlock Grid.Column="4" Classes="column-header" Text="Qtd." />
                     </Grid>
 
                     <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
                         <ItemsControl x:Name="ListaPecas" ItemsSource="{Binding Pecas}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:PecaViewModel">
-                                    <StackPanel Margin="0,0,0,8" Spacing="4">
-                                        <Grid ColumnDefinitions="28,164,*,108,100,60,36" ColumnSpacing="8">
-                                            <TextBlock Grid.Column="0" Classes="row-number" Text="{Binding Numero}" />
+                                    <!-- Cada peça: imagem à esquerda; medidas em cima e descrição embaixo -->
+                                    <Border Classes="linha-peca">
+                                        <StackPanel Spacing="6">
+                                            <Grid ColumnDefinitions="28,176,*,*,84,36"
+                                                  RowDefinitions="Auto,Auto"
+                                                  ColumnSpacing="10"
+                                                  RowSpacing="8">
+                                                <TextBlock Grid.Row="0" Grid.RowSpan="2" Grid.Column="0"
+                                                           Classes="row-number"
+                                                           Text="{Binding Numero}" />
 
-                                            <!-- Espaço da imagem da peça (retângulo ou desenho) -->
-                                            <Button Grid.Column="1"
-                                                    Classes="desenho"
-                                                    Command="{Binding DesenharCommand}"
-                                                    ToolTip.Tip="Desenhar o formato desta peça">
-                                                <Grid ColumnDefinitions="60,*" ColumnSpacing="6">
-                                                    <Border Grid.Column="0" Classes="imagem-peca">
-                                                        <Panel>
-                                                            <controls:PreviaFormato Formato="{Binding FormatoPrevia}"
-                                                                                    Margem="4"
-                                                                                    Preenchimento="{DynamicResource BrandSoftBrush}"
-                                                                                    Borda="{DynamicResource BrandBrush}" />
-                                                            <TextBlock Text="sem medidas"
-                                                                       IsVisible="{Binding !TemPrevia}"
-                                                                       FontSize="10"
-                                                                       FontWeight="Normal"
-                                                                       LineHeight="12"
-                                                                       TextWrapping="Wrap"
-                                                                       TextAlignment="Center"
-                                                                       HorizontalAlignment="Center"
-                                                                       VerticalAlignment="Center"
-                                                                       Foreground="{DynamicResource TextSecondaryBrush}" />
-                                                        </Panel>
-                                                    </Border>
-                                                    <StackPanel Grid.Column="1"
-                                                                Orientation="Horizontal"
-                                                                Spacing="4"
-                                                                VerticalAlignment="Center">
-                                                        <PathIcon Width="11" Height="11"
-                                                                  Data="M0,10.9 V14 H3.1 L11,6.1 L7.9,3 Z M13.7,3.4 C14.1,3 14.1,2.4 13.7,2 L12,0.3 C11.6,-0.1 11,-0.1 10.6,0.3 L9.1,1.8 L12.2,4.9 Z" />
-                                                        <TextBlock Text="Desenhar"
-                                                                   IsVisible="{Binding EhRetangular}"
-                                                                   VerticalAlignment="Center" />
-                                                        <TextBlock Text="Editar"
-                                                                   IsVisible="{Binding EhDesenhada}"
-                                                                   VerticalAlignment="Center" />
-                                                    </StackPanel>
-                                                </Grid>
-                                            </Button>
+                                                <!-- Espaço da imagem da peça (retângulo ou desenho); clicar abre o editor -->
+                                                <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="1"
+                                                        Classes="desenho"
+                                                        Command="{Binding DesenharCommand}"
+                                                        ToolTip.Tip="Desenhar o formato desta peça">
+                                                    <Grid RowDefinitions="*,Auto" RowSpacing="3">
+                                                        <Border Grid.Row="0" Classes="imagem-peca">
+                                                            <Panel>
+                                                                <controls:PreviaFormato Formato="{Binding FormatoPrevia}"
+                                                                                        Margem="6"
+                                                                                        Preenchimento="{DynamicResource BrandSoftBrush}"
+                                                                                        Borda="{DynamicResource BrandBrush}" />
+                                                                <TextBlock Text="sem medidas"
+                                                                           IsVisible="{Binding !TemPrevia}"
+                                                                           FontSize="12"
+                                                                           FontWeight="Normal"
+                                                                           HorizontalAlignment="Center"
+                                                                           VerticalAlignment="Center"
+                                                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                            </Panel>
+                                                        </Border>
+                                                        <StackPanel Grid.Row="1"
+                                                                    Orientation="Horizontal"
+                                                                    Spacing="5"
+                                                                    HorizontalAlignment="Center">
+                                                            <PathIcon Width="12" Height="12"
+                                                                      Data="M0,10.9 V14 H3.1 L11,6.1 L7.9,3 Z M13.7,3.4 C14.1,3 14.1,2.4 13.7,2 L12,0.3 C11.6,-0.1 11,-0.1 10.6,0.3 L9.1,1.8 L12.2,4.9 Z" />
+                                                            <TextBlock Text="Desenhar"
+                                                                       IsVisible="{Binding EhRetangular}"
+                                                                       VerticalAlignment="Center" />
+                                                            <TextBlock Text="Editar desenho"
+                                                                       IsVisible="{Binding EhDesenhada}"
+                                                                       VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Button>
 
-                                            <TextBox Grid.Column="2"
-                                                     VerticalAlignment="Center"
-                                                     Text="{Binding Descricao}"
-                                                     PlaceholderText="Ex.: Lateral" />
-                                            <!-- Peça desenhada: as medidas vêm do desenho -->
-                                            <NumericUpDown Grid.Column="3"
-                                                           VerticalAlignment="Center"
-                                                           Value="{Binding Comprimento}"
-                                                           IsEnabled="{Binding EhRetangular}" />
-                                            <NumericUpDown Grid.Column="4"
-                                                           VerticalAlignment="Center"
-                                                           Value="{Binding Largura}"
-                                                           IsEnabled="{Binding EhRetangular}" />
-                                            <NumericUpDown Grid.Column="5"
-                                                           VerticalAlignment="Center"
-                                                           Value="{Binding Quantidade}"
-                                                           Minimum="1"
-                                                           FormatString="0"
-                                                           ParsingNumberStyle="Integer" />
-                                            <Button Grid.Column="6"
-                                                    Classes="subtle"
-                                                    Padding="10"
-                                                    Command="{Binding RemoverCommand}"
-                                                    ToolTip.Tip="Remover peça">
-                                                <PathIcon Width="10" Height="10"
-                                                          Foreground="{DynamicResource TextSecondaryBrush}"
-                                                          Data="M1.4,0 L5,3.6 L8.6,0 L10,1.4 L6.4,5 L10,8.6 L8.6,10 L5,6.4 L1.4,10 L0,8.6 L3.6,5 L0,1.4 Z" />
-                                            </Button>
-                                        </Grid>
-                                        <TextBlock Classes="hint danger"
-                                                   Margin="36,0,0,0"
-                                                   Text="{Binding Aviso}"
-                                                   IsVisible="{Binding Aviso, Converter={x:Static ObjectConverters.IsNotNull}}" />
-                                    </StackPanel>
+                                                <!-- Em cima: medidas e quantidade (peça desenhada: medidas vêm do desenho) -->
+                                                <NumericUpDown Grid.Row="0" Grid.Column="2"
+                                                               Value="{Binding Comprimento}"
+                                                               IsEnabled="{Binding EhRetangular}" />
+                                                <NumericUpDown Grid.Row="0" Grid.Column="3"
+                                                               Value="{Binding Largura}"
+                                                               IsEnabled="{Binding EhRetangular}" />
+                                                <NumericUpDown Grid.Row="0" Grid.Column="4"
+                                                               Value="{Binding Quantidade}"
+                                                               Minimum="1"
+                                                               FormatString="0"
+                                                               ParsingNumberStyle="Integer" />
+
+                                                <!-- Embaixo: descrição -->
+                                                <TextBox Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="3"
+                                                         Text="{Binding Descricao}"
+                                                         PlaceholderText="Descrição (ex.: Lateral)" />
+
+                                                <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="5"
+                                                        Classes="subtle"
+                                                        Padding="10"
+                                                        VerticalAlignment="Center"
+                                                        Command="{Binding RemoverCommand}"
+                                                        ToolTip.Tip="Remover peça">
+                                                    <PathIcon Width="11" Height="11"
+                                                              Foreground="{DynamicResource TextSecondaryBrush}"
+                                                              Data="M1.4,0 L5,3.6 L8.6,0 L10,1.4 L6.4,5 L10,8.6 L8.6,10 L5,6.4 L1.4,10 L0,8.6 L3.6,5 L0,1.4 Z" />
+                                                </Button>
+                                            </Grid>
+                                            <TextBlock Classes="hint danger"
+                                                       Margin="224,0,0,0"
+                                                       Text="{Binding Aviso}"
+                                                       IsVisible="{Binding Aviso, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                        </StackPanel>
+                                    </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
